@@ -1,0 +1,284 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
+      - --api.dashboard=true
+      - --log.level=INFO
+    ports:
+      - "${SKILLBEAM_HTTP_PORT:-3784}:80"
+      - "${SKILLBEAM_DASHBOARD_PORT:-8086}:8080"
+    volumes:
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - skillbeam
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: skillbeam
+      POSTGRES_PASSWORD: skillbeam
+      POSTGRES_DB: skillbeam
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillbeam -d skillbeam"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - skillbeam
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - skillbeam
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    working_dir: /workspace/service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - skillbeam
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "${SKILLBEAM_MINIO_PORT:-9100}:9000"
+      - "${SKILLBEAM_MINIO_CONSOLE_PORT:-9101}:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      - skillbeam
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./infra/minio/cors.json:/tmp/cors.json:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done;
+      mc mb -p local/skillbeam || true;
+      mc cors set local/skillbeam /tmp/cors.json || true;
+      mc anonymous set download local/skillbeam || true;
+      exit 0;
+      "
+    networks:
+      - skillbeam
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      APP_NAME: api-gateway
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+      JWT_SECRET: change-me
+      INGEST_SERVICE_URL: http://ingest:8000
+      GENERATE_SERVICE_URL: http://generate:8000
+      EXPORT_SERVICE_URL: http://export:8000
+      RATE_LIMIT_PER_MINUTE: 180
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ingest:
+        condition: service_started
+      generate:
+        condition: service_started
+      export:
+        condition: service_started
+    networks:
+      - skillbeam
+
+  ingest:
+    build:
+      context: .
+      dockerfile: services/ingest/Dockerfile
+    environment:
+      APP_NAME: ingest
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - skillbeam
+
+  generate:
+    build:
+      context: .
+      dockerfile: services/generate/Dockerfile
+    environment:
+      APP_NAME: generate
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+      LLM_PROVIDER: ${LLM_PROVIDER:-mistral}
+      LOCAL_VLLM_BASE_URL: http://vllm:8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-https://api.mistral.ai/v1}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-medium-latest}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-120}
+      YOUTUBE_PROXY_URL: ${YOUTUBE_PROXY_URL:-}
+      YOUTUBE_COOKIES_FILE: ${YOUTUBE_COOKIES_FILE:-/run/secrets/youtube_cookies.txt}
+    volumes:
+      - ${YOUTUBE_COOKIES_HOST_FILE:-/dev/null}:${YOUTUBE_COOKIES_FILE:-/run/secrets/youtube_cookies.txt}:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - skillbeam
+
+  export:
+    build:
+      context: .
+      dockerfile: services/export/Dockerfile
+    environment:
+      APP_NAME: export
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - skillbeam
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    environment:
+      APP_NAME: worker
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+      LLM_PROVIDER: ${LLM_PROVIDER:-mistral}
+      LOCAL_VLLM_BASE_URL: http://vllm:8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-https://api.mistral.ai/v1}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-medium-latest}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-120}
+      YOUTUBE_PROXY_URL: ${YOUTUBE_PROXY_URL:-}
+      YOUTUBE_COOKIES_FILE: ${YOUTUBE_COOKIES_FILE:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - skillbeam
+
+  worker-health:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      APP_NAME: worker-health
+      DATABASE_URL: postgresql+psycopg2://skillbeam:skillbeam@postgres:5432/skillbeam
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:${SKILLBEAM_MINIO_PORT:-9100}
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: skillbeam
+    depends_on:
+      worker:
+        condition: service_started
+    networks:
+      - skillbeam
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - skillbeam
+
+networks:
+  skillbeam:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

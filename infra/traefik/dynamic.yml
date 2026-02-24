@@ -1,0 +1,56 @@
+http:
+  routers:
+    api-pronote-router:
+      rule: PathPrefix(`/pronote/api`)
+      entryPoints:
+        - web
+      service: api-gateway
+      middlewares:
+        - api-pronote-strip
+      priority: 110
+    api-router:
+      rule: PathPrefix(`/api`)
+      entryPoints:
+        - web
+      service: api-gateway
+      middlewares:
+        - api-strip
+      priority: 100
+    web-pronote-router:
+      rule: PathPrefix(`/pronote`)
+      entryPoints:
+        - web
+      service: web
+      middlewares:
+        - web-pronote-strip
+      priority: 90
+    web-router:
+      rule: PathPrefix(`/`)
+      entryPoints:
+        - web
+      service: web
+      priority: 1
+
+  services:
+    api-gateway:
+      loadBalancer:
+        servers:
+          - url: http://api-gateway:8000
+    web:
+      loadBalancer:
+        servers:
+          - url: http://web:3000
+
+  middlewares:
+    api-pronote-strip:
+      stripPrefix:
+        prefixes:
+          - /pronote/api
+    api-strip:
+      stripPrefix:
+        prefixes:
+          - /api
+    web-pronote-strip:
+      stripPrefix:
+        prefixes:
+          - /pronote
