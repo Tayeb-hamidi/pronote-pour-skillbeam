@@ -114,6 +114,10 @@ MATCHING_PREDICATE_PREFIX_PATTERN = re.compile(
     r"^\s*(est|sont|decrit(?:e|ent)?|décrit(?:e|ent)?|signifie(?:nt)?|indique(?:nt)?|explique(?:nt)?|definit|définit|definissent|définissent|correspond(?:ent)?\s+a|permet(?:tent)?\s+de|sert(?:vent)?\s+a|consiste(?:nt)?\s+a|represente(?:nt)?|représente(?:nt)?|caracterise(?:nt)?|caractérise(?:nt)?|garantit|garantissent|envoie(?:nt)?|renvoie(?:nt)?|limite(?:nt)?|transmet(?:tent)?|recoi(?:t|vent)|reçoi(?:t|vent)|declenche(?:nt)?|déclenche(?:nt)?|active(?:nt)?)\b",
     flags=re.IGNORECASE,
 )
+MATCHING_COPULA_ARTICLE_PATTERN = re.compile(
+    r"^\s*(?:est|sont)\s+(?:une?\s+|le\s+|la\s+|les\s+|l['']\s*|des\s+|du\s+|d['']\s*)?",
+    flags=re.IGNORECASE,
+)
 MATCHING_LEFT_ARTICLE_PHRASE_PATTERN = re.compile(
     r"(?:^|\b)(?:toutes?\s+|tous\s+|chaque\s+|certaines?\s+|certains?\s+|ces\s+)?"
     r"((?:l['’]|le|la|les|un|une|des|du)\s+[A-Za-zÀ-ÖØ-öø-ÿ0-9'-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ0-9'-]+){0,4})",
@@ -494,9 +498,16 @@ def _coerce_matching_definition(left: str, right_raw: str) -> str | None:
         right = suffix.strip(" -:;,.")
     if MATCHING_WEAK_DEFINITION_PATTERN.match(right):
         return None
-    # If definition starts with a verb ("est", "sont", etc.), capitalise it
-    # instead of prepending the left concept (which caused ugly repetition).
-    if MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
+    # Strip bare copulas "est/sont" + optional article to produce a self-contained
+    # noun-phrase definition.  Keep meaningful predicate verbs and just capitalise.
+    copula_match = MATCHING_COPULA_ARTICLE_PATTERN.match(right)
+    if copula_match and MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
+        stripped = right[copula_match.end():]
+        if stripped and len(stripped.split()) >= MATCHING_RIGHT_MIN_WORDS:
+            right = stripped[0].upper() + stripped[1:]
+        else:
+            right = right[0].upper() + right[1:]
+    elif MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
         right = right[0].upper() + right[1:]
     right = _normalize_matching_side(right, max_words=34, min_words=MATCHING_RIGHT_MIN_WORDS)
     if right and MATCHING_RIGHT_NOISY_START_PATTERN.match(right):

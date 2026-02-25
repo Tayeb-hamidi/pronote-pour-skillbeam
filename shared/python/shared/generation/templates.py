@@ -104,6 +104,10 @@ MATCHING_PREDICATE_PREFIX_PATTERN = re.compile(
     r"^\s*(est|sont|decrit(?:e|ent)?|décrit(?:e|ent)?|signifie(?:nt)?|indique(?:nt)?|explique(?:nt)?|definit|définit|definissent|définissent|correspond(?:ent)?\s+a|permet(?:tent)?\s+de|sert(?:vent)?\s+a|consiste(?:nt)?\s+a|represente(?:nt)?|représente(?:nt)?|caracterise(?:nt)?|caractérise(?:nt)?|garantit|garantissent|envoie(?:nt)?|renvoie(?:nt)?|limite(?:nt)?|transmet(?:tent)?|recoi(?:t|vent)|reçoi(?:t|vent)|declenche(?:nt)?|déclenche(?:nt)?|active(?:nt)?)\b",
     flags=re.IGNORECASE,
 )
+MATCHING_COPULA_ARTICLE_PATTERN = re.compile(
+    r"^\s*(?:est|sont)\s+(?:une?\s+|le\s+|la\s+|les\s+|l['']\s*|des\s+|du\s+|d['']\s*)?",
+    flags=re.IGNORECASE,
+)
 MATCHING_SENTENCE_PAIR_PATTERN = re.compile(
     r"^\s*(.+?)\s+\b(est|sont|decrit(?:e|ent)?|décrit(?:e|ent)?|signifie(?:nt)?|indique(?:nt)?|explique(?:nt)?|definit|définit|definissent|définissent|correspond(?:ent)?\s+a|permet(?:tent)?\s+de|sert(?:vent)?\s+a|consiste(?:nt)?\s+a|represente(?:nt)?|représente(?:nt)?|caracterise(?:nt)?|caractérise(?:nt)?|garantit|garantissent|envoie(?:nt)?|renvoie(?:nt)?|limite(?:nt)?|transmet(?:tent)?|recoi(?:t|vent)|reçoi(?:t|vent)|declenche(?:nt)?|déclenche(?:nt)?|active(?:nt)?)\b\s+(.+)$",
     flags=re.IGNORECASE,
@@ -567,7 +571,7 @@ def generate_items(
     if should_refine_association_pairs:
         association_target = max(
             8,
-            sum(1 for mode in pronote_mode_sequence if mode == "association_pairs") * 4,
+            sum(1 for mode in pronote_mode_sequence if mode == "association_pairs") * 5,
             max_items * 2,
         )
         llm_matching_pool = _build_matching_llm_pairs_pool(
@@ -721,6 +725,9 @@ def _build_matching_llm_pairs_pool(
         - CHAQUE paire doit porter sur une notion DISTINCTE. Ne jamais reformuler la meme notion.
         - left: notion disciplinaire complete (2 a 6 mots), sans verbe conjugue, sans fragment.
         - right: phrase complete de definition (10 a 24 mots), explicite, sans texte tronque.
+        - right: NE COMMENCE JAMAIS par "est", "sont", "c'est" ou un verbe d'etat. Ecris directement une definition sous forme de groupe nominal ou phrase autonome.
+          Exemple correct: "Transfert d'energie thermique par contact direct entre deux corps."
+          Exemple incorrect: "Est un transfert d'energie thermique par contact."
         - TOUS les mots doivent etre COMPLETS. Jamais de mot coupe ou tronque. Jamais de lettre manquante.
         - Les accents doivent etre corrects : é, è, ê, à, ù, ç, etc.
         - Interdit dans left: mots de liaison, adverbes temporels, formulations narratives.
@@ -745,6 +752,7 @@ def _build_matching_llm_pairs_pool(
         prompt
         + "\nIMPORTANT: ne fournis que des notions disciplinaires concretes et des definitions completes. "
         + "Aucun mot isole, aucune phrase incomplete."
+        + "\nNe commence AUCUNE definition par 'est' ou 'sont'. Chaque definition doit etre un groupe nominal autonome."
     )
     retry_pairs = _extract_matching_pairs_from_llm_payload(provider.generate(retry_prompt), limit=target_size)
     return retry_pairs if len(retry_pairs) > len(pairs) else pairs
@@ -1339,7 +1347,7 @@ def _enforce_pronote_mode_coherence(
     matching_mode_count = sum(1 for mode in mode_sequence if mode == "association_pairs")
     matching_pool: list[tuple[str, str]] = []
     if matching_mode_count > 0:
-        desired_pool_size = max(6, matching_mode_count * 4)
+        desired_pool_size = max(6, matching_mode_count * 5)
         if llm_matching_pool:
             matching_pool = _select_matching_pairs_variant(
                 llm_matching_pool,
@@ -1352,6 +1360,8 @@ def _enforce_pronote_mode_coherence(
                 desired_pairs=desired_pool_size,
             )
     matching_index = 0
+    # Track globally consumed pairs to avoid duplicates across questions.
+    used_pair_keys: set[tuple[str, str]] = set()
 
     coerced: list[GeneratedItem] = []
     for index, item in enumerate(items):
@@ -1359,17 +1369,35 @@ def _enforce_pronote_mode_coherence(
             coerced.append(item)
             continue
         mode = mode_sequence[index]
-        coerced.append(
-            _coerce_item_for_pronote_mode(
-                item=item,
-                mode=mode,
-                source_text=source_text,
-                association_pool=matching_pool,
-                association_index=matching_index,
-                association_total=matching_mode_count,
-            )
+
+        # For association questions, filter pool to exclude already-used pairs.
+        if mode == "association_pairs" and matching_pool:
+            available_pool = [
+                p for p in matching_pool
+                if (p[0].strip().lower(), p[1].strip().lower()) not in used_pair_keys
+            ]
+            if len(available_pool) < 2:
+                available_pool = matching_pool  # fallback: allow reuse
+        else:
+            available_pool = matching_pool
+
+        result = _coerce_item_for_pronote_mode(
+            item=item,
+            mode=mode,
+            source_text=source_text,
+            association_pool=available_pool if mode == "association_pairs" else matching_pool,
+            association_index=matching_index,
+            association_total=matching_mode_count,
         )
+        coerced.append(result)
         if mode == "association_pairs":
+            # Mark pairs from this question as used.
+            for opt in result.answer_options:
+                for sep in ("->", "=>", "→"):
+                    if sep in opt:
+                        raw_l, raw_r = opt.split(sep, 1)
+                        used_pair_keys.add((raw_l.strip().lower(), raw_r.strip().lower()))
+                        break
             matching_index += 1
     return coerced
 
@@ -1399,7 +1427,7 @@ def _enforce_matching_item_coherence(
     if not matching_indexes:
         return items
 
-    desired_pool_size = max(8, len(matching_indexes) * 4)
+    desired_pool_size = max(8, len(matching_indexes) * 5)
     matching_pool: list[tuple[str, str]] = []
     if llm_matching_pool:
         matching_pool = _select_matching_pairs_variant(
@@ -1414,6 +1442,8 @@ def _enforce_matching_item_coherence(
         )
     matching_index = 0
     coerced: list[GeneratedItem] = []
+    # Track globally consumed pairs to avoid duplicates across questions.
+    used_pair_keys: set[tuple[str, str]] = set()
 
     for item in items:
         if not _looks_like_matching_item_payload(item):
@@ -1427,6 +1457,13 @@ def _enforce_matching_item_coherence(
             or any(tag in PRONOTE_MODES for tag in normalized_tags)
         )
         if is_pronote_matching and _matching_pairs_are_pronote_ready(extracted_pairs):
+            # Filter out globally used pairs before accepting pronote-ready items.
+            filtered_pairs = [
+                p for p in extracted_pairs
+                if (p[0].strip().lower(), p[1].strip().lower()) not in used_pair_keys
+            ]
+            if len(filtered_pairs) < 2:
+                filtered_pairs = extracted_pairs  # fallback: allow reuse
             tags = ["matching", *item.tags]
             if "association_pairs" in normalized_tags or "pronote" in normalized_tags:
                 tags.append("association_pairs")
@@ -1439,13 +1476,15 @@ def _enforce_matching_item_coherence(
                     update={
                         "item_type": ItemType.MATCHING,
                         "prompt": _ensure_question_mark(prompt),
-                        "correct_answer": " || ".join(f"{left} -> {right}" for left, right in extracted_pairs),
+                        "correct_answer": " || ".join(f"{left} -> {right}" for left, right in filtered_pairs),
                         "distractors": [],
-                        "answer_options": [f"{left} -> {right}" for left, right in extracted_pairs],
+                        "answer_options": [f"{left} -> {right}" for left, right in filtered_pairs],
                         "tags": deduped_tags,
                     }
                 )
             )
+            for left, right in filtered_pairs:
+                used_pair_keys.add((left.strip().lower(), right.strip().lower()))
             matching_index += 1
             continue
 
@@ -1454,17 +1493,34 @@ def _enforce_matching_item_coherence(
 
         pair_pool_size = len(extracted_pairs if extracted_pairs else matching_pool)
         if len(matching_indexes) > 1:
-            desired_pairs = 3 if pair_pool_size >= len(matching_indexes) * 3 else 2
+            # Relaxed threshold: allow 3 pairs if pool covers (N-1)*3+2
+            desired_pairs = 3 if pair_pool_size >= (len(matching_indexes) - 1) * 3 + 2 else 2
         else:
             desired_pairs = 4
+
+        # Filter pool to exclude globally used pairs.
+        active_pool = extracted_pairs if extracted_pairs else matching_pool
+        available_pool = [
+            p for p in active_pool
+            if (p[0].strip().lower(), p[1].strip().lower()) not in used_pair_keys
+        ]
+        if len(available_pool) < desired_pairs:
+            available_pool = active_pool  # fallback: allow reuse if pool exhausted
+
         pairs = _select_matching_pairs_variant(
-            extracted_pairs if extracted_pairs else matching_pool,
+            available_pool,
             variant_index=matching_index,
             desired_pairs=desired_pairs,
         )
         if len(pairs) < 2 and matching_pool:
+            available_fallback = [
+                p for p in matching_pool
+                if (p[0].strip().lower(), p[1].strip().lower()) not in used_pair_keys
+            ]
+            if len(available_fallback) < 2:
+                available_fallback = matching_pool
             pairs = _select_matching_pairs_variant(
-                matching_pool,
+                available_fallback,
                 variant_index=matching_index,
                 desired_pairs=desired_pairs,
             )
@@ -1499,6 +1555,8 @@ def _enforce_matching_item_coherence(
                 }
             )
         )
+        for left, right in pairs:
+            used_pair_keys.add((left.strip().lower(), right.strip().lower()))
         matching_index += 1
 
     return coerced
@@ -2035,9 +2093,16 @@ def _coerce_matching_definition(left: str, right_raw: str) -> str | None:
         right = suffix.strip(" -:;,.")
     if MATCHING_WEAK_DEFINITION_PATTERN.match(right):
         return None
-    # If definition starts with a verb ("est", "sont", etc.), capitalise it
-    # instead of prepending the left concept (which caused ugly repetition).
-    if MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
+    # Strip bare copulas "est/sont" + optional article to produce a self-contained
+    # noun-phrase definition.  Keep meaningful predicate verbs and just capitalise.
+    copula_match = MATCHING_COPULA_ARTICLE_PATTERN.match(right)
+    if copula_match and MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
+        stripped = right[copula_match.end():]
+        if stripped and len(stripped.split()) >= MATCHING_RIGHT_MIN_WORDS:
+            right = stripped[0].upper() + stripped[1:]
+        else:
+            right = right[0].upper() + right[1:]
+    elif MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
         right = right[0].upper() + right[1:]
     right = _normalize_matching_side(right, max_words=34, min_words=MATCHING_RIGHT_MIN_WORDS)
     if right and MATCHING_RIGHT_NOISY_START_PATTERN.match(right):
