@@ -1901,6 +1901,12 @@ export default function HomePage() {
                                       {option.title}
                                     </span>
                                     <span className="pronote-choice-subtitle">{option.subtitle}</span>
+                                    {checked && (
+                                      <span className="pronote-choice-badge">
+                                        ×{pronoteModeCounts[mode] ?? 1}
+                                        {mode === "matching" && ` · ${matchingPairsPerQuestion}p`}
+                                      </span>
+                                    )}
                                   </button>
                                 );
                               })}
@@ -1920,11 +1926,16 @@ export default function HomePage() {
                         const popupOption = pronoteModeByValue.get(countPopup as PronoteExerciseMode);
                         if (!popupOption) return null;
                         const popupChecked = selectedPronoteModes.includes(countPopup as PronoteExerciseMode);
+                        const qCount = pronoteModeCounts[countPopup as PronoteExerciseMode] ?? 1;
+                        const closePopup = () => setCountPopup(null);
                         return (
                           <div
                             className="pronote-popup-backdrop"
-                            onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                            onClick={(event) => { event.stopPropagation(); closePopup(); }}
                             onMouseDown={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => { if (event.key === "Escape") closePopup(); }}
+                            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+                            tabIndex={-1}
                           >
                             <div
                               className="pronote-popup"
@@ -1939,7 +1950,7 @@ export default function HomePage() {
                                 <button
                                   type="button"
                                   className="pronote-popup-close"
-                                  onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                                  onClick={(event) => { event.stopPropagation(); closePopup(); }}
                                 >
                                   ×
                                 </button>
@@ -1955,37 +1966,50 @@ export default function HomePage() {
                               </label>
 
                               <div className="pronote-popup-fields">
-                                <label className="pronote-popup-field">
+                                <div className="pronote-popup-field">
                                   <span>Nombre de questions</span>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={100}
-                                    value={pronoteModeCounts[countPopup as PronoteExerciseMode] ?? 1}
-                                    onChange={(event) => updatePronoteModeCount(countPopup as PronoteExerciseMode, event.target.value)}
-                                  />
-                                </label>
+                                  <div className="pronote-stepper">
+                                    <button
+                                      type="button"
+                                      className="pronote-stepper-btn"
+                                      onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.max(1, qCount - 1)))}
+                                      disabled={qCount <= 1}
+                                    >−</button>
+                                    <span className="pronote-stepper-value">{qCount}</span>
+                                    <button
+                                      type="button"
+                                      className="pronote-stepper-btn"
+                                      onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.min(100, qCount + 1)))}
+                                      disabled={qCount >= 100}
+                                    >+</button>
+                                  </div>
+                                </div>
                                 {countPopup === "matching" && (
-                                  <label className="pronote-popup-field">
+                                  <div className="pronote-popup-field">
                                     <span>Paires par question</span>
-                                    <input
-                                      type="number"
-                                      min={2}
-                                      max={6}
-                                      value={matchingPairsPerQuestion}
-                                      onChange={(event) => {
-                                        const v = parseInt(event.target.value, 10);
-                                        setMatchingPairsPerQuestion(Number.isNaN(v) ? 3 : Math.min(6, Math.max(2, v)));
-                                      }}
-                                    />
-                                  </label>
+                                    <div className="pronote-stepper">
+                                      <button
+                                        type="button"
+                                        className="pronote-stepper-btn"
+                                        onClick={() => setMatchingPairsPerQuestion((p) => Math.max(2, p - 1))}
+                                        disabled={matchingPairsPerQuestion <= 2}
+                                      >−</button>
+                                      <span className="pronote-stepper-value">{matchingPairsPerQuestion}</span>
+                                      <button
+                                        type="button"
+                                        className="pronote-stepper-btn"
+                                        onClick={() => setMatchingPairsPerQuestion((p) => Math.min(6, p + 1))}
+                                        disabled={matchingPairsPerQuestion >= 6}
+                                      >+</button>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
 
                               <button
                                 type="button"
                                 className="pronote-popup-confirm"
-                                onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                                onClick={(event) => { event.stopPropagation(); closePopup(); }}
                               >
                                 ✓ Confirmer
                               </button>
