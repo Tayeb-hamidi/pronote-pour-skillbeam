@@ -355,6 +355,7 @@ export default function HomePage() {
     matching: 5
   });
   const [matchingPairsPerQuestion, setMatchingPairsPerQuestion] = useState<number>(3);
+  const [countPopup, setCountPopup] = useState<string | null>(null);
   const [generationCount, setGenerationCount] = useState<number>(10);
   const [instructions, setInstructions] = useState<string>("");
   const [contentSetId, setContentSetId] = useState<string>("");
@@ -1891,7 +1892,8 @@ export default function HomePage() {
                                     onMouseDown={(event) => event.stopPropagation()}
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      togglePronoteMode(mode);
+                                      if (!checked) togglePronoteMode(mode);
+                                      setCountPopup(mode);
                                     }}
                                   >
                                     <span className="pronote-choice-title">
@@ -1907,64 +1909,90 @@ export default function HomePage() {
                         ))}
                       </div>
 
-                      <div className="pronote-counts-panel mt-3">
-                        <p className="pronote-counts-title">Nombre de questions par type sélectionné</p>
-                        {selectedPronoteOptions.length === 0 ? (
-                          <p className="text-sm text-slate-600">Selectionnez au moins un type d&apos;exercice.</p>
-                        ) : (
-                          <div className="pronote-counts-grid">
-                            {selectedPronoteOptions.map((option) =>
-                              option.value === "matching" ? (
-                                <div key={option.value} className="pronote-matching-row">
-                                  <label className="pronote-matching-count-label">
-                                    <span className="pronote-matching-icon">🔗</span>
-                                    {option.title}
+                      <p className="pronote-total mt-3">
+                        Total questions Pronote&nbsp;: {pronoteRequestedCount} / 100
+                        {selectedPronoteOptions.length > 0 && (
+                          <span className="pronote-total-hint"> — cliquez sur un type pour configurer</span>
+                        )}
+                      </p>
+
+                      {countPopup !== null && (() => {
+                        const popupOption = pronoteModeByValue.get(countPopup as PronoteExerciseMode);
+                        if (!popupOption) return null;
+                        const popupChecked = selectedPronoteModes.includes(countPopup as PronoteExerciseMode);
+                        return (
+                          <div
+                            className="pronote-popup-backdrop"
+                            onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                          >
+                            <div
+                              className="pronote-popup"
+                              onClick={(event) => event.stopPropagation()}
+                              onMouseDown={(event) => event.stopPropagation()}
+                            >
+                              <div className="pronote-popup-header">
+                                <div>
+                                  <p className="pronote-popup-title">{popupOption.title}</p>
+                                  <p className="pronote-popup-subtitle">{popupOption.subtitle}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="pronote-popup-close"
+                                  onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+
+                              <label className="pronote-popup-toggle">
+                                <input
+                                  type="checkbox"
+                                  checked={popupChecked}
+                                  onChange={() => togglePronoteMode(countPopup as PronoteExerciseMode)}
+                                />
+                                Inclure ce type dans la génération
+                              </label>
+
+                              <div className="pronote-popup-fields">
+                                <label className="pronote-popup-field">
+                                  <span>Nombre de questions</span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={pronoteModeCounts[countPopup as PronoteExerciseMode] ?? 1}
+                                    onChange={(event) => updatePronoteModeCount(countPopup as PronoteExerciseMode, event.target.value)}
+                                  />
+                                </label>
+                                {countPopup === "matching" && (
+                                  <label className="pronote-popup-field">
+                                    <span>Paires par question</span>
                                     <input
-                                      className="pronote-mode-count"
-                                      type="number"
-                                      min={1}
-                                      max={100}
-                                      value={pronoteModeCounts[option.value] ?? 1}
-                                      onClick={(event) => event.stopPropagation()}
-                                      onChange={(event) => updatePronoteModeCount(option.value, event.target.value)}
-                                    />
-                                  </label>
-                                  <div className="pronote-matching-divider" />
-                                  <label className="pronote-matching-pairs-label">
-                                    Paires / question
-                                    <input
-                                      className="pronote-mode-count"
                                       type="number"
                                       min={2}
                                       max={6}
                                       value={matchingPairsPerQuestion}
-                                      onClick={(event) => event.stopPropagation()}
                                       onChange={(event) => {
                                         const v = parseInt(event.target.value, 10);
                                         setMatchingPairsPerQuestion(Number.isNaN(v) ? 3 : Math.min(6, Math.max(2, v)));
                                       }}
                                     />
                                   </label>
-                                </div>
-                              ) : (
-                                <label key={option.value} className="text-sm font-medium text-slate-800">
-                                  {option.title}
-                                  <input
-                                    className="pronote-mode-count"
-                                    type="number"
-                                    min={1}
-                                    max={100}
-                                    value={pronoteModeCounts[option.value] ?? 1}
-                                    onClick={(event) => event.stopPropagation()}
-                                    onChange={(event) => updatePronoteModeCount(option.value, event.target.value)}
-                                  />
-                                </label>
-                              )
-                            )}
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                className="pronote-popup-confirm"
+                                onClick={(event) => { event.stopPropagation(); setCountPopup(null); }}
+                              >
+                                ✓ Confirmer
+                              </button>
+                            </div>
                           </div>
-                        )}
-                        <p className="pronote-total">Total questions Pronote: {pronoteRequestedCount} / 100</p>
-                      </div>
+                        );
+                      })()}
 
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
                         <label className="text-sm font-medium text-slate-800">
