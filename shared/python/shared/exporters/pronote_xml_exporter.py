@@ -383,6 +383,14 @@ def _normalize_matching_side(value: str, *, max_words: int, min_words: int = 1) 
     cleaned = re.sub(r"^[\W_]+|[\W_]+$", "", cleaned).strip()
     if not cleaned:
         return None
+    # Fix unclosed parentheses left by the trailing non-word strip above.
+    open_count = cleaned.count("(")
+    close_count = cleaned.count(")")
+    if open_count > close_count:
+        last_open = cleaned.rfind("(")
+        cleaned = cleaned[:last_open].strip(" -:;,.")
+    if not cleaned:
+        return None
     words = cleaned.split()
     if len(words) < min_words or len(words) > max_words:
         return None

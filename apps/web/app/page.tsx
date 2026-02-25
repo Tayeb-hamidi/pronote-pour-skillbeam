@@ -354,6 +354,7 @@ export default function HomePage() {
     cloze_list_variable: 3,
     matching: 5
   });
+  const [matchingPairsPerQuestion, setMatchingPairsPerQuestion] = useState<number>(3);
   const [generationCount, setGenerationCount] = useState<number>(10);
   const [instructions, setInstructions] = useState<string>("");
   const [contentSetId, setContentSetId] = useState<string>("");
@@ -692,6 +693,9 @@ export default function HomePage() {
       acc[option.value] = Math.min(100, Math.max(1, pronoteModeCounts[option.value] ?? 1));
       return acc;
     }, {});
+    if (selectedPronoteModes.includes("matching")) {
+      pronoteModeJson["matching_pairs_per_question"] = matchingPairsPerQuestion;
+    }
     const sections = [
       instructions.trim(),
       learningGoal.trim() ? `Objectif: ${learningGoal.trim()}` : "",
@@ -1926,6 +1930,25 @@ export default function HomePage() {
                           </div>
                         )}
                         <p className="pronote-total">Total questions Pronote: {pronoteRequestedCount} / 100</p>
+                        {selectedPronoteModes.includes("matching") && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className="text-sm font-medium text-slate-800 flex items-center gap-2">
+                              Associations par question
+                              <input
+                                className="pronote-mode-count"
+                                type="number"
+                                min={2}
+                                max={6}
+                                value={matchingPairsPerQuestion}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => {
+                                  const v = parseInt(event.target.value, 10);
+                                  setMatchingPairsPerQuestion(Number.isNaN(v) ? 3 : Math.min(6, Math.max(2, v)));
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">

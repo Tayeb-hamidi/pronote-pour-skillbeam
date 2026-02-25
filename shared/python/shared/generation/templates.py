@@ -563,15 +563,17 @@ def generate_items(
         instructions=instructions,
         max_items=max_items,
     )
+    pairs_per_question = _extract_matching_pairs_per_question(instructions)
     should_refine_association_pairs = (
         ContentType.MATCHING in content_types
         or any(mode == "association_pairs" for mode in pronote_mode_sequence)
     )
     llm_matching_pool: list[tuple[str, str]] = []
     if should_refine_association_pairs:
+        matching_count = sum(1 for mode in pronote_mode_sequence if mode == "association_pairs")
         association_target = max(
             8,
-            sum(1 for mode in pronote_mode_sequence if mode == "association_pairs") * 5,
+            matching_count * (pairs_per_question + 2),
             max_items * 2,
         )
         llm_matching_pool = _build_matching_llm_pairs_pool(
@@ -589,11 +591,13 @@ def generate_items(
             source_text=effective_source,
             mode_sequence=pronote_mode_sequence,
             llm_matching_pool=llm_matching_pool,
+            pairs_per_question=pairs_per_question,
         )
     validated = _enforce_matching_item_coherence(
         items=validated,
         source_text=effective_source,
         llm_matching_pool=llm_matching_pool,
+        pairs_per_question=pairs_per_question,
     )
 
     return [_sanitize_generated_item(item) for item in validated[:max_items]]
@@ -730,8 +734,11 @@ def _build_matching_llm_pairs_pool(
           Exemple incorrect: "Est un transfert d'energie thermique par contact."
         - TOUS les mots doivent etre COMPLETS. Jamais de mot coupe ou tronque. Jamais de lettre manquante.
         - Les accents doivent etre corrects : é, è, ê, à, ù, ç, etc.
+        - right: la definition NE DOIT PAS contenir le terme exact de left ni un mot qui donne directement la reponse. L'eleve doit reflechir pour trouver l'association.
+          Exemple correct: left="Signal sinusoidal", right="Forme d'onde periodique decrite par une fonction trigonometrique lisse"
+          Exemple incorrect: left="Signal sinusoidal", right="Signal periodique dont la forme est sinusoidale"
         - Interdit dans left: mots de liaison, adverbes temporels, formulations narratives.
-        - Evite les analogies narratives si elles ne sont pas des notions du cours.
+        - Evite les parentheses avec des symboles ou abreviations dans left et right.
         - Utilise les notions fondamentales presentes dans la source.
         - Verifie que chaque paire est unique et non redondante avant de la produire.
         - Langue: {language}
@@ -1332,12 +1339,36 @@ def _extract_pronote_mode_sequence(*, instructions: str | None, max_items: int) 
     return sequence[:max_items]
 
 
+def _extract_matching_pairs_per_question(instructions: str | None) -> int:
+    """Read matching_pairs_per_question from PRONOTE_MODES_JSON in instructions."""
+    if not instructions:
+        return 3
+    for line in instructions.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(PRONOTE_MODES_JSON_PREFIX):
+            raw = stripped[len(PRONOTE_MODES_JSON_PREFIX):].strip()
+            try:
+                decoded = json.loads(raw)
+            except json.JSONDecodeError:
+                return 3
+            if isinstance(decoded, Mapping):
+                val = decoded.get("matching_pairs_per_question")
+                if val is not None:
+                    try:
+                        return max(2, min(6, int(val)))
+                    except (TypeError, ValueError):
+                        pass
+            return 3
+    return 3
+
+
 def _enforce_pronote_mode_coherence(
     *,
     items: list[GeneratedItem],
     source_text: str,
     mode_sequence: list[PronoteMode],
     llm_matching_pool: list[tuple[str, str]] | None = None,
+    pairs_per_question: int = 3,
 ) -> list[GeneratedItem]:
     """Force minimal coherence between selected Pronote mode and generated item shape."""
 
@@ -1347,7 +1378,7 @@ def _enforce_pronote_mode_coherence(
     matching_mode_count = sum(1 for mode in mode_sequence if mode == "association_pairs")
     matching_pool: list[tuple[str, str]] = []
     if matching_mode_count > 0:
-        desired_pool_size = max(6, matching_mode_count * 5)
+        desired_pool_size = max(6, matching_mode_count * (pairs_per_question + 2))
         if llm_matching_pool:
             matching_pool = _select_matching_pairs_variant(
                 llm_matching_pool,
@@ -1388,6 +1419,7 @@ def _enforce_pronote_mode_coherence(
             association_pool=available_pool if mode == "association_pairs" else matching_pool,
             association_index=matching_index,
             association_total=matching_mode_count,
+            pairs_per_question=pairs_per_question,
         )
         coerced.append(result)
         if mode == "association_pairs":
@@ -1418,6 +1450,7 @@ def _enforce_matching_item_coherence(
     *,
     items: list[GeneratedItem],
     source_text: str,
+    pairs_per_question: int = 3,
     llm_matching_pool: list[tuple[str, str]] | None = None,
 ) -> list[GeneratedItem]:
     if not items:
@@ -1427,7 +1460,7 @@ def _enforce_matching_item_coherence(
     if not matching_indexes:
         return items
 
-    desired_pool_size = max(8, len(matching_indexes) * 5)
+    desired_pool_size = max(8, len(matching_indexes) * (pairs_per_question + 2))
     matching_pool: list[tuple[str, str]] = []
     if llm_matching_pool:
         matching_pool = _select_matching_pairs_variant(
@@ -1492,11 +1525,9 @@ def _enforce_matching_item_coherence(
             extracted_pairs = []
 
         pair_pool_size = len(extracted_pairs if extracted_pairs else matching_pool)
-        if len(matching_indexes) > 1:
-            # Relaxed threshold: allow 3 pairs if pool covers (N-1)*3+2
-            desired_pairs = 3 if pair_pool_size >= (len(matching_indexes) - 1) * 3 + 2 else 2
-        else:
-            desired_pairs = 4
+        # Use the user-configured pairs_per_question, fall back to 2 if pool is too small.
+        min_needed = (len(matching_indexes) - 1) * pairs_per_question + 2
+        desired_pairs = pairs_per_question if pair_pool_size >= min_needed else max(2, pairs_per_question - 1)
 
         # Filter pool to exclude globally used pairs.
         active_pool = extracted_pairs if extracted_pairs else matching_pool
@@ -1570,6 +1601,7 @@ def _coerce_item_for_pronote_mode(
     association_pool: list[tuple[str, str]] | None = None,
     association_index: int = 0,
     association_total: int = 1,
+    pairs_per_question: int = 3,
 ) -> GeneratedItem:
     """Adapt a generated item to the target Pronote exercise mode."""
 
@@ -1675,10 +1707,7 @@ def _coerce_item_for_pronote_mode(
         )
 
     if mode == "association_pairs":
-        if association_total > 1:
-            desired_pairs = 3
-        else:
-            desired_pairs = 4
+        desired_pairs = pairs_per_question
         extracted_pairs = _extract_matching_pairs(item=item, source_text=source_text)
         if (
             not _matching_pairs_are_exportable(extracted_pairs)
@@ -1978,6 +2007,14 @@ def _normalize_matching_side(value: str, *, max_words: int, min_words: int = 1) 
         return None
     cleaned = _strip_question_prefix(cleaned)
     cleaned = re.sub(r"^[\W_]+|[\W_]+$", "", cleaned).strip()
+    if not cleaned:
+        return None
+    # Fix unclosed parentheses left by the trailing non-word strip above.
+    open_count = cleaned.count("(")
+    close_count = cleaned.count(")")
+    if open_count > close_count:
+        last_open = cleaned.rfind("(")
+        cleaned = cleaned[:last_open].strip(" -:;,.")
     if not cleaned:
         return None
     words = cleaned.split()
