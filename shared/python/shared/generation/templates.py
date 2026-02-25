@@ -346,7 +346,7 @@ MATCHING_DEFINITION_CUE_PATTERN = re.compile(
     r"permet|permettent|sert|servent|garantit|garantissent|c['’]?\s*est\s*[-–]?\s*[aà]\s*[-–]?\s*dire)\b",
     flags=re.IGNORECASE,
 )
-MATCHING_RIGHT_MIN_WORDS = 5
+MATCHING_RIGHT_MIN_WORDS = 3
 
 PronoteMode = Literal[
     "single_choice",
@@ -485,6 +485,8 @@ def build_prompt(
         - Formulation eleve: vocabulaire simple, direct, adapte a la classe cible; evite les doubles negations et les ambiguities.
         - Qualite pedagogique: distracteurs plausibles (erreurs frequentes d'eleves), jamais absurdes, jamais hors sujet.
         - Qualite pedagogique: reponse attendue concise et exploitable par un enseignant (sauf numerique/association/texte a trous).
+        - Pour les textes a trous (cloze): chaque trou doit contenir le MOT REEL qui complete la phrase, JAMAIS de placeholder (mot2, mot3, blank1, etc.). Les distracteurs de chaque trou doivent etre des mots plausibles mais incorrects dans ce contexte precis. Chaque trou = 1 seul mot ou expression courte du texte source.
+        - Pour les exercices d'epellation: les distracteurs doivent etre des fautes plausibles (accents manquants, lettres inversees), PAS des mots du prompt.
         {lycee_wording_rule}
         - Structure item:
           {{
@@ -2596,7 +2598,7 @@ def _extract_matching_pairs(*, item: GeneratedItem, source_text: str) -> list[tu
 
 
 def _matching_pairs_need_fallback(pairs: list[tuple[str, str]]) -> bool:
-    if len(pairs) < 3:
+    if len(pairs) < 2:
         return True
 
     if any(not _is_valid_matching_pair(left, right) for left, right in pairs):
@@ -2620,7 +2622,7 @@ def _matching_pairs_need_fallback(pairs: list[tuple[str, str]]) -> bool:
         return True
 
     average_right_words = sum(len(right.split()) for _, right in pairs) / max(1, len(pairs))
-    if average_right_words < max(4, MATCHING_RIGHT_MIN_WORDS):
+    if average_right_words < MATCHING_RIGHT_MIN_WORDS:
         return True
     if any(MATCHING_WEAK_DEFINITION_PATTERN.match(right.strip()) for _, right in pairs):
         return True
@@ -2661,9 +2663,9 @@ def _matching_pairs_are_pronote_ready(pairs: list[tuple[str, str]]) -> bool:
     right_lengths = [len(right.split()) for _, right in pairs]
     if not right_lengths:
         return False
-    if min(right_lengths) < max(4, MATCHING_RIGHT_MIN_WORDS):
+    if min(right_lengths) < MATCHING_RIGHT_MIN_WORDS:
         return False
-    if (sum(right_lengths) / len(right_lengths)) < 6:
+    if (sum(right_lengths) / len(right_lengths)) < 4:
         return False
 
     for left, right in pairs:

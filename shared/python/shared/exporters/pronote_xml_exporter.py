@@ -18,8 +18,11 @@ CLOZE_OPTION_PATTERN = re.compile(r"%([^%]+)%([^#]+)")
 CLOZE_OPTION_PLACEHOLDER_PATTERN = re.compile(r"^option\s+[a-z]$", flags=re.IGNORECASE)
 CLOZE_WORD_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'-]{2,}")
 CLOZE_STOPWORDS: set[str] = {
+    # French articles / pronouns / prepositions
     "quelle",
     "quelles",
+    "quels",
+    "quel",
     "comment",
     "pourquoi",
     "dans",
@@ -40,6 +43,60 @@ CLOZE_STOPWORDS: set[str] = {
     "sont",
     "être",
     "etre",
+    "par",
+    "sur",
+    "sous",
+    "vers",
+    "chez",
+    "tout",
+    "tous",
+    "toute",
+    "toutes",
+    "mais",
+    "donc",
+    "car",
+    "qui",
+    "que",
+    "dont",
+    "ses",
+    "son",
+    "leur",
+    "leurs",
+    "cette",
+    "ces",
+    "aux",
+    # French instruction verbs (common in cloze prompts)
+    "epelez",
+    "épelez",
+    "citez",
+    "donnez",
+    "completez",
+    "complétez",
+    "nommez",
+    "expliquez",
+    "decrivez",
+    "décrivez",
+    "identifiez",
+    "indiquez",
+    "trouvez",
+    "choisissez",
+    "mot",
+    "mots",
+    "texte",
+    "phrase",
+    "suivants",
+    "suivantes",
+    "exemple",
+    "exemples",
+    "concret",
+    "concrets",
+    "lettre",
+    "lettres",
+    "deux",
+    "trois",
+    "quatre",
+    "types",
+    "type",
 }
 MATCHING_PLACEHOLDER_PATTERN = re.compile(
     r"^(definition\s+de|def\s+de|desc\s+de|element\s+[a-z0-9]+|notion\s+[a-z0-9]+|terme\s+[a-z0-9]+)\b",
@@ -335,7 +392,14 @@ _JUNK_ANSWER_LOWER: set[str] = {
     "option d",
     "reponse attendue",
     "hors contexte",
+    "completez",
+    "complétez",
 }
+
+# Regex matching LLM placeholder variables like "mot2", "mot3", "mot5"
+_PLACEHOLDER_VAR_PATTERN = re.compile(
+    r"^(?:mot|word|var|blank|item|option)\s*\d+$", flags=re.IGNORECASE
+)
 
 
 def _is_junk_answer(value: str) -> bool:
@@ -343,12 +407,19 @@ def _is_junk_answer(value: str) -> bool:
     cleaned = _normalize_text(value) if value else ""
     if not cleaned:
         return True
-    if cleaned.lower() in _JUNK_ANSWER_LOWER:
+    lowered = cleaned.lower()
+    if lowered in _JUNK_ANSWER_LOWER:
         return True
     if CLOZE_OPTION_PLACEHOLDER_PATTERN.match(cleaned):
         return True
     # patterns like "reponse partielle", "reponse alternative"
     if re.match(r"^reponse\s+\w+$", cleaned, flags=re.IGNORECASE):
+        return True
+    # LLM placeholder variables: mot2, mot3, word1, blank2, etc.
+    if _PLACEHOLDER_VAR_PATTERN.match(cleaned):
+        return True
+    # Single word shorter than 4 chars is not a useful distractor
+    if len(cleaned) < 4 and " " not in cleaned:
         return True
     return False
 
@@ -772,9 +843,12 @@ def _extract_prompt_candidate_terms(prompt: str) -> list[str]:
         key = normalized.lower()
         if key in CLOZE_STOPWORDS:
             continue
-        if len(normalized) < 3:
+        # Require at least 5 chars for a useful distractor term
+        if len(normalized) < 5:
             continue
         if key in seen:
+            continue
+        if _PLACEHOLDER_VAR_PATTERN.match(normalized):
             continue
         seen.add(key)
         candidates.append(normalized)
