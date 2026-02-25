@@ -1141,6 +1141,44 @@ button.pronote-cta:disabled {
   }
 }
 
+.pronote-matching-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(14, 161, 141, 0.09), rgba(22, 185, 166, 0.05));
+  border: 1.5px solid rgba(14, 161, 141, 0.35);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.pronote-matching-count-label,
+.pronote-matching-pairs-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.pronote-matching-pairs-label {
+  color: #0b967f;
+}
+
+.pronote-matching-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pronote-matching-divider {
+  width: 1px;
+  height: 1.6rem;
+  background: rgba(14, 161, 141, 0.3);
+  flex-shrink: 0;
+}
+
 .pronote-total {
   margin: 0.6rem 0 0;
   color: #334155;

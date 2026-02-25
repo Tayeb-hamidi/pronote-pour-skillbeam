@@ -1913,42 +1913,57 @@ export default function HomePage() {
                           <p className="text-sm text-slate-600">Selectionnez au moins un type d&apos;exercice.</p>
                         ) : (
                           <div className="pronote-counts-grid">
-                            {selectedPronoteOptions.map((option) => (
-                              <label key={option.value} className="text-sm font-medium text-slate-800">
-                                {option.title}
-                                <input
-                                  className="pronote-mode-count"
-                                  type="number"
-                                  min={1}
-                                  max={100}
-                                  value={pronoteModeCounts[option.value] ?? 1}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onChange={(event) => updatePronoteModeCount(option.value, event.target.value)}
-                                />
-                              </label>
-                            ))}
+                            {selectedPronoteOptions.map((option) =>
+                              option.value === "matching" ? (
+                                <div key={option.value} className="pronote-matching-row">
+                                  <label className="pronote-matching-count-label">
+                                    <span className="pronote-matching-icon">🔗</span>
+                                    {option.title}
+                                    <input
+                                      className="pronote-mode-count"
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      value={pronoteModeCounts[option.value] ?? 1}
+                                      onClick={(event) => event.stopPropagation()}
+                                      onChange={(event) => updatePronoteModeCount(option.value, event.target.value)}
+                                    />
+                                  </label>
+                                  <div className="pronote-matching-divider" />
+                                  <label className="pronote-matching-pairs-label">
+                                    Paires / question
+                                    <input
+                                      className="pronote-mode-count"
+                                      type="number"
+                                      min={2}
+                                      max={6}
+                                      value={matchingPairsPerQuestion}
+                                      onClick={(event) => event.stopPropagation()}
+                                      onChange={(event) => {
+                                        const v = parseInt(event.target.value, 10);
+                                        setMatchingPairsPerQuestion(Number.isNaN(v) ? 3 : Math.min(6, Math.max(2, v)));
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              ) : (
+                                <label key={option.value} className="text-sm font-medium text-slate-800">
+                                  {option.title}
+                                  <input
+                                    className="pronote-mode-count"
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={pronoteModeCounts[option.value] ?? 1}
+                                    onClick={(event) => event.stopPropagation()}
+                                    onChange={(event) => updatePronoteModeCount(option.value, event.target.value)}
+                                  />
+                                </label>
+                              )
+                            )}
                           </div>
                         )}
                         <p className="pronote-total">Total questions Pronote: {pronoteRequestedCount} / 100</p>
-                        {selectedPronoteModes.includes("matching") && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <label className="text-sm font-medium text-slate-800 flex items-center gap-2">
-                              Associations par question
-                              <input
-                                className="pronote-mode-count"
-                                type="number"
-                                min={2}
-                                max={6}
-                                value={matchingPairsPerQuestion}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={(event) => {
-                                  const v = parseInt(event.target.value, 10);
-                                  setMatchingPairsPerQuestion(Number.isNaN(v) ? 3 : Math.min(6, Math.max(2, v)));
-                                }}
-                              />
-                            </label>
-                          </div>
-                        )}
                       </div>
 
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
