@@ -932,8 +932,8 @@ def _normalize_item_payload(
 
     if item_type == ItemType.POLL:
         poll_options = _dedupe_strings(answer_options or distractors)
-        if len(poll_options) < 2:
-            poll_options.extend(["Option A", "Option B", "Option C"])
+        # No longer pad with "Option A/B/C" placeholders — empty polls
+        # will be skipped at export time rather than emitted with junk.
         answer_options = poll_options[:6]
         correct_answer = None
         distractors = []
@@ -1042,14 +1042,15 @@ def _dedupe_strings(values: list[str]) -> list[str]:
     return deduped
 
 
-def _default_mcq_distractors(*, existing: list[str]) -> list[str]:
-    candidates = [
-        "Une idee secondaire peu etayee",
-        "Une interpretation partielle du document",
-        "Une affirmation en contradiction avec le texte source",
-    ]
-    blocked = {value.lower() for value in existing}
-    return [candidate for candidate in candidates if candidate.lower() not in blocked]
+def _default_mcq_distractors(*, existing: list[str]) -> list[str]:  # noqa: ARG001
+    """Return an empty list — meta-text fallbacks are no longer used.
+
+    Previously this returned generic phrases like "Une idee secondaire peu
+    etayee" which leaked into the final XML as visible answer choices.
+    Questions with insufficient distractors are now exported with fewer
+    choices (which is valid for Pronote) rather than padded with junk text.
+    """
+    return []
 
 
 def _normalize_identifier(value: str) -> str:
@@ -1925,8 +1926,6 @@ def _coerce_poll_options(*, item: GeneratedItem) -> list[str]:
                 ],
             ]
         )
-    if len(options) < 3:
-        options.extend(["Option A", "Option B", "Option C"])
     return _dedupe_strings(options)[:6]
 
 
