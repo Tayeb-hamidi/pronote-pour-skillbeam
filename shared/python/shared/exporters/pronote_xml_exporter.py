@@ -437,19 +437,20 @@ def _normalize_matching_left_candidate(value: str) -> str:
         cleaned,
         flags=re.IGNORECASE,
     ).strip()
+    # Split on French relative pronouns / punctuation — require word boundary
+    # on BOTH sides to avoid matching inside words like "analogique", "numérique".
     cleaned = re.split(
-        r"\s*(?:,|;|qu['’]|qui\b|que\b|dont\b)\s*",
+        r"\s*(?:,|;|qu[‘’]|\bqui\b|\bque\b|\bdont\b)\s*",
         cleaned,
         maxsplit=1,
         flags=re.IGNORECASE,
     )[0].strip()
     cleaned = re.sub(
-        r"\s+(?:de|du|des|d['’]?|pour|avec|sans|dans|sur|en|par|vers|et|ou)$",
+        r"\s+(?:de|du|des|d[‘’]?|pour|avec|sans|dans|sur|en|par|vers|et|ou)$",
         "",
         cleaned,
         flags=re.IGNORECASE,
     ).strip()
-    cleaned = re.sub(r"\s+[A-Za-zÀ-ÖØ-öø-ÿ]$", "", cleaned).strip()
     return cleaned
 
 
@@ -493,8 +494,10 @@ def _coerce_matching_definition(left: str, right_raw: str) -> str | None:
         right = suffix.strip(" -:;,.")
     if MATCHING_WEAK_DEFINITION_PATTERN.match(right):
         return None
+    # If definition starts with a verb ("est", "sont", etc.), capitalise it
+    # instead of prepending the left concept (which caused ugly repetition).
     if MATCHING_PREDICATE_PREFIX_PATTERN.match(right):
-        right = f"{left} {right}"
+        right = right[0].upper() + right[1:]
     right = _normalize_matching_side(right, max_words=34, min_words=MATCHING_RIGHT_MIN_WORDS)
     if right and MATCHING_RIGHT_NOISY_START_PATTERN.match(right):
         right = None
