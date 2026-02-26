@@ -602,7 +602,211 @@ def generate_items(
         pairs_per_question=pairs_per_question,
     )
 
+    # ── Second-pass LLM: repair broken cloze items ──
+    validated = _repair_cloze_items_via_llm(
+        provider=provider,
+        items=validated,
+        source_text=effective_source,
+    )
+    # ── Second-pass LLM: validate MCQ/QRM factual accuracy ──
+    validated = _validate_mcq_items_via_llm(
+        provider=provider,
+        items=validated,
+        source_text=effective_source,
+    )
+
     return [_sanitize_generated_item(item) for item in validated[:max_items]]
+
+
+# ────────────────────────────────────────────────
+#  Multi-pass LLM: Cloze repair
+# ────────────────────────────────────────────────
+
+_CLOZE_JUNK_CORRECT_PATTERN = re.compile(
+    r"(?:^|\b)(?:mot\d+|requis|suivant|chaque|approprié|appropriee|"
+    r"utilisé|utilisee|concept|définition|definition|fonction|description|"
+    r"principale?|trous?)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _cloze_item_needs_llm_repair(item: GeneratedItem) -> bool:
+    """Check if a cloze item has placeholder/instruction words as answers."""
+    if item.item_type != ItemType.CLOZE:
+        return False
+    correct = (item.correct_answer or "").lower()
+    prompt = (item.prompt or "").lower()
+    if _CLOZE_JUNK_CORRECT_PATTERN.search(correct):
+        return True
+    if re.search(r"%100%mot\d+", prompt):
+        return True
+    if re.search(r"%100%(?:requis|suivant|chaque|approprié)", prompt, flags=re.IGNORECASE):
+        return True
+    return False
+
+
+def _repair_cloze_items_via_llm(
+    *,
+    provider: LLMProvider,
+    items: list[GeneratedItem],
+    source_text: str,
+) -> list[GeneratedItem]:
+    """Second-pass LLM call to fix cloze items with placeholder answers."""
+
+    repair_indexes = [
+        i for i, item in enumerate(items) if _cloze_item_needs_llm_repair(item)
+    ]
+    if not repair_indexes:
+        return items
+
+    descriptions: list[str] = []
+    for idx in repair_indexes:
+        clean_prompt = re.sub(
+            r"\{:MULTICHOICE:[^}]+\}", "____", items[idx].prompt or ""
+        )
+        descriptions.append(f"Question {idx + 1}: {clean_prompt}")
+
+    repair_prompt = dedent(
+        f"""\
+        Tu es un correcteur de textes a trous (cloze).
+        Pour chaque question ci-dessous, identifie les MOTS REELS du texte source
+        qui doivent remplir chaque trou (marque par ____).
+
+        REGLES STRICTES:
+        - Chaque trou = 1 seul mot ou expression courte (2-3 mots max)
+        - Les mots doivent venir du texte source et avoir un sens dans la phrase
+        - JAMAIS de placeholder (mot2, mot3, requis, suivant, approprié, etc.)
+        - Fournis les mots dans l'ORDRE des trous (de gauche a droite)
+
+        Retourne UNIQUEMENT un JSON valide:
+        {{"repairs": [
+            {{"index": 1, "words": ["mot_trou_1", "mot_trou_2"]}},
+            {{"index": 2, "words": ["mot_trou_1"]}}
+        ]}}
+
+        Questions a reparer:
+        {chr(10).join(descriptions)}
+
+        Texte source (extrait):
+        {source_text[:8000]}"""
+    )
+
+    try:
+        raw = provider.generate(repair_prompt)
+        repairs = _parse_json_list(raw, key="repairs")
+        result = list(items)
+        repair_set = set(repair_indexes)
+        for repair in repairs:
+            idx = int(repair.get("index", 0)) - 1
+            words: list[str] = repair.get("words", [])
+            if idx not in repair_set or not words:
+                continue
+            clean_words = [
+                w.strip()
+                for w in words
+                if w
+                and w.strip()
+                and not _CLOZE_JUNK_CORRECT_PATTERN.match(w.strip())
+            ]
+            if clean_words:
+                result[idx] = result[idx].model_copy(
+                    update={"correct_answer": ", ".join(clean_words)}
+                )
+        return result
+    except Exception:
+        return items
+
+
+# ────────────────────────────────────────────────
+#  Multi-pass LLM: MCQ/QRM factual validation
+# ────────────────────────────────────────────────
+
+
+def _validate_mcq_items_via_llm(
+    *,
+    provider: LLMProvider,
+    items: list[GeneratedItem],
+    source_text: str,
+) -> list[GeneratedItem]:
+    """Second-pass LLM call to validate MCQ/QRM factual accuracy."""
+
+    mcq_indexes = [
+        i
+        for i, item in enumerate(items)
+        if item.item_type in (ItemType.MCQ, ItemType.POLL)
+    ]
+    if not mcq_indexes:
+        return items
+
+    descriptions: list[str] = []
+    for idx in mcq_indexes:
+        item = items[idx]
+        lines = [f"Q{idx + 1}: {item.prompt}"]
+        if item.correct_answer:
+            lines.append(f"  BONNE REPONSE: {item.correct_answer}")
+        for d in item.distractors[:4]:
+            lines.append(f"  FAUX: {d}")
+        descriptions.append("\n".join(lines))
+
+    validation_prompt = dedent(
+        f"""\
+        Tu es un validateur de QCM pedagogiques.
+        Verifie la JUSTESSE FACTUELLE de chaque question ci-dessous.
+        Compare avec le texte source fourni.
+
+        Pour chaque question, indique:
+        - "ok" si question ET reponses sont factuellement correctes
+        - "error" si une reponse est factuellement fausse, avec la correction
+
+        Retourne UNIQUEMENT un JSON valide:
+        {{"validations": [
+            {{"index": 1, "status": "ok"}},
+            {{"index": 2, "status": "error", "corrected_answer": "...", "corrected_distractors": ["d1","d2","d3"]}}
+        ]}}
+
+        Questions:
+        {chr(10).join(descriptions)}
+
+        Texte source (extrait):
+        {source_text[:6000]}"""
+    )
+
+    try:
+        raw = provider.generate(validation_prompt)
+        validations = _parse_json_list(raw, key="validations")
+        result = list(items)
+        mcq_set = set(mcq_indexes)
+        for val in validations:
+            idx = int(val.get("index", 0)) - 1
+            if idx not in mcq_set or val.get("status") != "error":
+                continue
+            updates: dict[str, Any] = {}
+            corrected_answer = val.get("corrected_answer")
+            corrected_distractors = val.get("corrected_distractors")
+            if corrected_answer and isinstance(corrected_answer, str):
+                updates["correct_answer"] = corrected_answer
+            if corrected_distractors and isinstance(corrected_distractors, list):
+                updates["distractors"] = [
+                    d for d in corrected_distractors if isinstance(d, str) and d.strip()
+                ]
+            if updates:
+                result[idx] = result[idx].model_copy(update=updates)
+        return result
+    except Exception:
+        return items
+
+
+def _parse_json_list(raw: str, *, key: str) -> list[dict]:
+    """Extract a list of dicts from a JSON block keyed by *key*."""
+    try:
+        json_match = re.search(r"\{[\s\S]*\}", raw)
+        if not json_match:
+            return []
+        data = json.loads(json_match.group())
+        entries = data.get(key, [])
+        return [e for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return []
 
 
 def _attempt_llm_generation(

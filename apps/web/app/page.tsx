@@ -2503,6 +2503,9 @@ export default function HomePage() {
               Valider les modifications
             </button>
           </div>
+          <p className="mt-3 text-xs text-amber-700 italic">
+            &#9888;&#65039; Contenu genere par IA &mdash; une relecture attentive de l&apos;enseignant est recommandee avant utilisation en classe.
+          </p>
         </section>
       )}
 
@@ -2528,16 +2531,29 @@ export default function HomePage() {
           </div>
 
           {exportFormat === "pronote_xml" && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-emerald-900">
-                <input
-                  type="checkbox"
-                  checked={pronoteShuffleAnswers}
-                  onChange={(e) => setPronoteShuffleAnswers(e.target.checked)}
-                />
-                Melanger l&apos;ordre des reponses dans le XML Pronote (bonne reponse pas toujours en premier)
-              </label>
-            </div>
+            <>
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-emerald-900">
+                  <input
+                    type="checkbox"
+                    checked={pronoteShuffleAnswers}
+                    onChange={(e) => setPronoteShuffleAnswers(e.target.checked)}
+                  />
+                  Melanger l&apos;ordre des reponses dans le XML Pronote (bonne reponse pas toujours en premier)
+                </label>
+              </div>
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-900">
+                  &#9888;&#65039; Relecture recommandee
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  Ce fichier est genere automatiquement par intelligence artificielle.
+                  Une <strong>relecture attentive de l&apos;enseignant</strong> est vivement
+                  recommandee avant toute utilisation en classe. Verifiez la justesse
+                  factuelle des reponses et la pertinence pedagogique de chaque question.
+                </p>
+              </div>
+            </>
           )}
 
           <div className="mt-4 flex flex-wrap gap-3">

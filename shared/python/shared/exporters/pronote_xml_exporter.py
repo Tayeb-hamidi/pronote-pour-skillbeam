@@ -1354,6 +1354,10 @@ class PronoteXmlExporter(BaseExporter):
 
         rows.extend(
             [
+                "<!-- IMPORTANT : Ce fichier a ete genere automatiquement par SkillBeam. -->",
+                "<!-- Une relecture attentive de l'enseignant est vivement recommandee  -->",
+                "<!-- avant toute utilisation en classe. Verifiez la justesse factuelle  -->",
+                "<!-- des reponses et la pertinence pedagogique de chaque question.     -->",
                 '<question type="category">',
                 "  <category>",
                 f"    <text>{category_cdata}</text>",
