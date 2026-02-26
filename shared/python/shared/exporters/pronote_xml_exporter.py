@@ -97,6 +97,50 @@ CLOZE_STOPWORDS: set[str] = {
     "quatre",
     "types",
     "type",
+    "proposés",
+    "proposes",
+    "proposé",
+    "propose",
+    "manquants",
+    "manquant",
+    "correspondants",
+    "correspondant",
+    "corrects",
+    "correct",
+    "appropriés",
+    "appropries",
+    "associez",
+    "reliez",
+    "remplissez",
+    # Singular forms of instruction adjectives (LLM extracts these as answers)
+    "requis",
+    "requise",
+    "suivant",
+    "suivante",
+    "approprié",
+    "appropriee",
+    "appropriée",
+    "chaque",
+    "utilisé",
+    "utilisée",
+    "utilise",
+    "utilisez",
+    "concept",
+    "concepts",
+    "définition",
+    "definition",
+    "définitions",
+    "definitions",
+    "fonction",
+    "fonctions",
+    "description",
+    "descriptions",
+    "principale",
+    "principales",
+    "principal",
+    "principaux",
+    "trou",
+    "trous",
 }
 MATCHING_PLACEHOLDER_PATTERN = re.compile(
     r"^(definition\s+de|def\s+de|desc\s+de|element\s+[a-z0-9]+|notion\s+[a-z0-9]+|terme\s+[a-z0-9]+)\b",
@@ -386,6 +430,10 @@ _JUNK_ANSWER_LOWER: set[str] = {
     "une idee secondaire peu etayee",
     "une interpretation partielle du document",
     "une affirmation en contradiction avec le texte source",
+    # Variants from _rule_based_fallback()
+    "une idee annexe non traitee",
+    "une conclusion sans lien direct",
+    "un exemple contradictoire",
     "option a",
     "option b",
     "option c",
@@ -394,7 +442,36 @@ _JUNK_ANSWER_LOWER: set[str] = {
     "hors contexte",
     "completez",
     "complétez",
+    # French month names (OCR artifacts from PDF headers)
+    "janvier",
+    "fevrier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "aout",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "decembre",
+    "décembre",
 }
+
+# Pattern catching meta-text distractor variants with optional (number) suffix
+_META_TEXT_DISTRACTOR_PATTERN = re.compile(
+    r"^(?:une?\s+(?:idee|idée|interpretation|interprétation|affirmation|conclusion|exemple)"
+    r"|un\s+(?:exemple|résumé|resume))\b",
+    flags=re.IGNORECASE,
+)
+
+# Pattern detecting garbled OCR text (concatenated words without spaces)
+# Matches "2020DOCUMENT", "Juillet2020DOCUMENT", etc.
+_OCR_GARBLED_PATTERN = re.compile(
+    r"\d{4}[A-ZÉÈÊËÀÂÙÛÎÏÔÖ]{2,}|[a-zéèêëàâùûîïôöç]{2,}\d{4}[A-Z]",
+)
 
 # Regex matching LLM placeholder variables like "mot2", "mot3", "mot5"
 _PLACEHOLDER_VAR_PATTERN = re.compile(
@@ -408,7 +485,9 @@ def _is_junk_answer(value: str) -> bool:
     if not cleaned:
         return True
     lowered = cleaned.lower()
-    if lowered in _JUNK_ANSWER_LOWER:
+    # Strip optional trailing " (N)" suffix from meta-text like "Une idee annexe (3)"
+    lowered_base = re.sub(r"\s*\(\d+\)\s*$", "", lowered)
+    if lowered in _JUNK_ANSWER_LOWER or lowered_base in _JUNK_ANSWER_LOWER:
         return True
     if CLOZE_OPTION_PLACEHOLDER_PATTERN.match(cleaned):
         return True
@@ -417,6 +496,15 @@ def _is_junk_answer(value: str) -> bool:
         return True
     # LLM placeholder variables: mot2, mot3, word1, blank2, etc.
     if _PLACEHOLDER_VAR_PATTERN.match(cleaned):
+        return True
+    # Meta-text distractor families (with optional number suffix)
+    if _META_TEXT_DISTRACTOR_PATTERN.match(lowered_base):
+        return True
+    # Garbled OCR text (concatenated words like "2020DOCUMENT")
+    if _OCR_GARBLED_PATTERN.search(cleaned):
+        return True
+    # Instruction/stopword used as answer (e.g. "requis", "suivant", "approprié")
+    if lowered in CLOZE_STOPWORDS:
         return True
     # Single word shorter than 4 chars is not a useful distractor
     if len(cleaned) < 4 and " " not in cleaned:
@@ -877,6 +965,8 @@ def _build_cloze_fallback_distractors(
             return
         if _is_junk_answer(normalized):
             return
+        if key in CLOZE_STOPWORDS:
+            return
         seen.add(key)
         distractors.append(normalized)
 
@@ -905,8 +995,8 @@ def _repair_inline_cloze_tokens(
     if not token_matches:
         return prompt
 
-    rebuilt_tokens: list[str] = []
-    used_expected = 0
+    # One replacement per original token: valid → rebuilt cloze, junk → None (removed)
+    replacements: list[str | None] = []
 
     # Collect ALL non-junk correct answers first (for cross-blank exclusion)
     all_valid_correct: list[str] = []
@@ -933,11 +1023,10 @@ def _repair_inline_cloze_tokens(
             or next((a for a in all_valid_correct if a not in {c for c in all_valid_correct[:index]}), None)
             or "Reponse attendue"
         )
-        if index < len(expected_answers):
-            used_expected = index + 1
 
-        # Skip this token entirely if the correct answer is junk
+        # Junk correct answer → mark token for removal
         if _is_junk_answer(correct):
+            replacements.append(None)
             continue
 
         parsed_distractors = [
@@ -957,23 +1046,16 @@ def _repair_inline_cloze_tokens(
             prompt=prompt,
             limit=3,
         )
-        rebuilt_tokens.append(_cloze_token(correct, distractors))
+        replacements.append(_cloze_token(correct, distractors))
 
-    if used_expected < len(expected_answers):
-        for answer in expected_answers[used_expected:]:
-            if _is_junk_answer(answer):
-                continue
-            safe_seeds = [v for v in [*expected_answers, *distractor_pool] if not _is_junk_answer(v)]
-            distractors = _build_cloze_fallback_distractors(
-                correct=answer,
-                seed_values=safe_seeds,
-                prompt=prompt,
-                limit=3,
-            )
-            rebuilt_tokens.append(_cloze_token(answer, distractors))
+    # Replace ALL tokens: valid → rebuilt cloze, junk → removed (empty string)
+    replacement_iter = iter(replacements)
 
-    iterator = iter(rebuilt_tokens)
-    return CLOZE_TOKEN_PATTERN.sub(lambda _m: next(iterator), prompt, count=len(rebuilt_tokens))
+    def _replace_token(_match: re.Match[str]) -> str:
+        repl = next(replacement_iter, None)
+        return repl if repl is not None else ""
+
+    return CLOZE_TOKEN_PATTERN.sub(_replace_token, prompt)
 
 
 def _build_cloze_text(prompt: str, correct_answers: list[str], distractors: list[str]) -> str:
@@ -1290,6 +1372,17 @@ class PronoteXmlExporter(BaseExporter):
             item_type = item.item_type.value
             item_tags = [tag for tag in item.tags if isinstance(tag, str)]
             answer_options = [value for value in item.answer_options if isinstance(value, str)]
+
+            # Skip tautological questions where correct answer ≈ prompt
+            if correct and len(correct) > 10:
+                prompt_lower = prompt.lower().replace(" ", "")
+                correct_lower = correct.lower().replace(" ", "")
+                if correct_lower in prompt_lower or prompt_lower in correct_lower:
+                    continue
+
+            # Skip questions with garbled OCR in the prompt itself
+            if _OCR_GARBLED_PATTERN.search(prompt):
+                continue
 
             if item_type == "mcq":
                 expected_answers = [

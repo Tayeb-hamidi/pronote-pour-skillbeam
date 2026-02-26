@@ -1119,16 +1119,15 @@ def _rule_based_fallback(
         sentence = sentences[index % len(sentences)]
 
         if content_type == ContentType.MCQ:
+            # Build plausible distractors from OTHER sentences (not meta-text)
+            other_sentences = [s for j, s in enumerate(sentences) if j != index % len(sentences)]
+            mcq_distractors = [s[:120] for s in other_sentences[:3]]
             items.append(
                 GeneratedItem(
                     item_type=ItemType.MCQ,
                     prompt=f"Q{number}. Quelle proposition resume le mieux: {sentence[:120]} ?",
                     correct_answer=sentence,
-                    distractors=[
-                        f"Une idee annexe non traitee ({number})",
-                        f"Une conclusion sans lien direct ({number})",
-                        f"Un exemple contradictoire ({number})",
-                    ],
+                    distractors=mcq_distractors,
                     tags=["auto"],
                     difficulty="medium",
                     source_reference=f"section:{(index % len(sentences)) + 1}",
