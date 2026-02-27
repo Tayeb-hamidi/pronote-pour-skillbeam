@@ -337,15 +337,15 @@ export default function HomePage() {
   const [selectedTypes, setSelectedTypes] = useState<ContentType[]>([]);
   const [selectedPronoteModes, setSelectedPronoteModes] = useState<PronoteExerciseMode[]>(["single_choice"]);
   const [pronoteModeCounts, setPronoteModeCounts] = useState<Record<PronoteExerciseMode, number>>({
-    single_choice: 10,
-    multiple_choice: 5,
+    single_choice: 3,
+    multiple_choice: 3,
     numeric_value: 3,
     free_response: 3,
-    spelling: 2,
+    spelling: 3,
     cloze_free: 3,
     cloze_list_unique: 3,
     cloze_list_variable: 3,
-    matching: 5
+    matching: 3
   });
   const [matchingPairsPerQuestion, setMatchingPairsPerQuestion] = useState<number>(3);
   const [countPopup, setCountPopup] = useState<string | null>(null);
@@ -636,7 +636,7 @@ export default function HomePage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
             <span className="teacher-badge">Espace enseignant</span>
-            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontFamily: "monospace" }}>v0.2.1</span>
+            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontFamily: "monospace" }}>v0.3.0</span>
           </div>
         </div>
         <p className="mb-5 max-w-3xl text-[1.2rem] font-semibold text-slate-800">
@@ -1193,8 +1193,12 @@ export default function HomePage() {
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={(event) => {
                                           event.stopPropagation();
-                                          if (!checked) togglePronoteMode(mode);
-                                          setCountPopup(mode);
+                                          if (checked) {
+                                            togglePronoteMode(mode);
+                                          } else {
+                                            togglePronoteMode(mode);
+                                            setCountPopup(mode);
+                                          }
                                         }}
                                       >
                                         <span className="pronote-choice-title">

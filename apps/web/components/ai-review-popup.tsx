@@ -45,11 +45,11 @@ export function AiReviewPopup({ open, onClose }: AiReviewPopupProps) {
                     />
                 </div>
 
-                <p className="ai-review-popup-title-new">Relecture recommandée</p>
+                <p className="ai-review-popup-title-new">Relecture avant utilisation</p>
 
                 <p className="ai-review-popup-subtitle">
-                    Contenu généré par <strong>IA</strong> — veuillez vérifier avant
-                    utilisation en classe.
+                    Les questions ci-après ont été générées par <strong>intelligence artificielle</strong>.
+                    Veuillez relire et vérifier les propositions de SkillBeam avant de les utiliser en classe.
                 </p>
 
                 <div className="ai-review-popup-actions">
@@ -58,7 +58,7 @@ export function AiReviewPopup({ open, onClose }: AiReviewPopupProps) {
                         className="ai-review-popup-accept"
                         onClick={onClose}
                     >
-                        ✓ J&apos;ai relu et j&apos;accepte
+                        ✓ J&apos;ai compris, voir les questions
                     </button>
                 </div>
             </div>
