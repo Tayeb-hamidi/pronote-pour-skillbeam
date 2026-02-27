@@ -1503,7 +1503,13 @@ export default function HomePage() {
         </section>
       )}
 
-      {step === 4 && (
+      {step === 4 && showAiReviewPopup && (
+        <section className="content-shell animate-fadeInUp p-6 md:p-7" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <AiReviewPopup open={true} onClose={() => setShowAiReviewPopup(false)} />
+        </section>
+      )}
+
+      {step === 4 && !showAiReviewPopup && (
         <section className="content-shell animate-fadeInUp p-6 md:p-7">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1823,145 +1829,146 @@ export default function HomePage() {
             <span className="ai-review-banner-arrow">→</span>
           </button>
 
-          <AiReviewPopup open={showAiReviewPopup} onClose={() => setShowAiReviewPopup(false)} />
         </section>
       )}
 
-      {step === 5 && (
-        <section className="content-shell animate-fadeInUp p-6 md:p-7">
-          <h2 className="step-title mb-2 text-4xl text-slate-900">5. Export</h2>
-          <p className="mb-4 text-lg text-slate-700">Choisissez le format de diffusion et telechargez le fichier.</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {EXPORT_OPTIONS.map((option) => {
-              const pronote = option.value === "pronote_xml";
-              return (
-                <Tile
-                  key={option.value}
-                  title={option.title}
-                  subtitle={option.subtitle}
-                  selected={exportFormat === option.value}
-                  onClick={() => setExportFormat(option.value)}
-                  variant={pronote ? "pronote" : "default"}
-                  icon={pronote ? <PronoteLogoIcon /> : undefined}
-                />
-              );
-            })}
-          </div>
-
-          {exportFormat === "pronote_xml" && (
-            <>
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-emerald-900">
-                  <input
-                    type="checkbox"
-                    checked={pronoteShuffleAnswers}
-                    onChange={(e) => setPronoteShuffleAnswers(e.target.checked)}
+      {
+        step === 5 && (
+          <section className="content-shell animate-fadeInUp p-6 md:p-7">
+            <h2 className="step-title mb-2 text-4xl text-slate-900">5. Export</h2>
+            <p className="mb-4 text-lg text-slate-700">Choisissez le format de diffusion et telechargez le fichier.</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {EXPORT_OPTIONS.map((option) => {
+                const pronote = option.value === "pronote_xml";
+                return (
+                  <Tile
+                    key={option.value}
+                    title={option.title}
+                    subtitle={option.subtitle}
+                    selected={exportFormat === option.value}
+                    onClick={() => setExportFormat(option.value)}
+                    variant={pronote ? "pronote" : "default"}
+                    icon={pronote ? <PronoteLogoIcon /> : undefined}
                   />
-                  Melanger l&apos;ordre des reponses dans le XML Pronote (bonne reponse pas toujours en premier)
-                </label>
-              </div>
+                );
+              })}
+            </div>
+
+            {exportFormat === "pronote_xml" && (
+              <>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-emerald-900">
+                    <input
+                      type="checkbox"
+                      checked={pronoteShuffleAnswers}
+                      onChange={(e) => setPronoteShuffleAnswers(e.target.checked)}
+                    />
+                    Melanger l&apos;ordre des reponses dans le XML Pronote (bonne reponse pas toujours en premier)
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  className="ai-review-banner mt-3"
+                  onClick={() => setShowAiReviewPopup(true)}
+                >
+                  <span className="ai-review-banner-icon">&#9888;&#65039;</span>
+                  <span className="ai-review-banner-text">
+                    <span className="ai-review-banner-title">Relecture recommandée</span>
+                    <span className="ai-review-banner-subtitle">
+                      Contenu généré par IA — cliquez pour consulter la proposition et valider
+                    </span>
+                  </span>
+                  <span className="ai-review-banner-arrow">→</span>
+                </button>
+
+                <AiReviewPopup open={showAiReviewPopup} onClose={() => setShowAiReviewPopup(false)} />
+              </>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" className="ghost" onClick={() => setStep(4)}>
+                Retour
+              </button>
               <button
                 type="button"
-                className="ai-review-banner mt-3"
-                onClick={() => setShowAiReviewPopup(true)}
+                className="primary"
+                onClick={handleExport}
+                disabled={busy || qualityPreview?.readiness === "blocked"}
               >
-                <span className="ai-review-banner-icon">&#9888;&#65039;</span>
-                <span className="ai-review-banner-text">
-                  <span className="ai-review-banner-title">Relecture recommandée</span>
-                  <span className="ai-review-banner-subtitle">
-                    Contenu généré par IA — cliquez pour consulter la proposition et valider
-                  </span>
-                </span>
-                <span className="ai-review-banner-arrow">→</span>
+                Exporter
               </button>
-
-              <AiReviewPopup open={showAiReviewPopup} onClose={() => setShowAiReviewPopup(false)} />
-            </>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button type="button" className="ghost" onClick={() => setStep(4)}>
-              Retour
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={handleExport}
-              disabled={busy || qualityPreview?.readiness === "blocked"}
-            >
-              Exporter
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={async () => {
-                try {
-                  const { authToken, project } = await ensureAuthAndProject();
-                  await refreshAnalytics(authToken, project);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Impossible de charger les analytics");
-                }
-              }}
-              disabled={busy}
-            >
-              Rafraichir analytics
-            </button>
-          </div>
-
-          {qualityPreview?.readiness === "blocked" && (
-            <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-              Export bloque: corrigez les points critiques dans l&apos;etape Edition humaine.
-            </p>
-          )}
-
-          {analytics && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-800">
-              <p className="font-semibold text-slate-900">Analytics projet</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div>Items totaux: <strong>{analytics.total_items}</strong></div>
-                <div>Versions banque: <strong>{analytics.question_bank_versions}</strong></div>
-                <div>Imports Pronote: <strong>{analytics.pronote_import_runs}</strong></div>
-                <div>Dernier content_set: <strong>{analytics.latest_content_set_id ?? "-"}</strong></div>
-              </div>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <div>
-                  <p className="font-semibold text-slate-700">Par type</p>
-                  {Object.entries(analytics.by_item_type).map(([key, value]) => (
-                    <p key={key}>
-                      {key}: <strong>{value}</strong>
-                    </p>
-                  ))}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-700">Par difficulte</p>
-                  {Object.entries(analytics.by_difficulty).map(([key, value]) => (
-                    <p key={key}>
-                      {labelDifficulty(key)}: <strong>{value}</strong>
-                    </p>
-                  ))}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-700">Exports</p>
-                  {Object.entries(analytics.export_by_format).map(([key, value]) => (
-                    <p key={key}>
-                      {key}: <strong>{value}</strong>
-                    </p>
-                  ))}
-                </div>
-              </div>
+              <button
+                type="button"
+                className="ghost"
+                onClick={async () => {
+                  try {
+                    const { authToken, project } = await ensureAuthAndProject();
+                    await refreshAnalytics(authToken, project);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Impossible de charger les analytics");
+                  }
+                }}
+                disabled={busy}
+              >
+                Rafraichir analytics
+              </button>
             </div>
-          )}
 
-          {downloadUrl && (
-            <p className="status-success mt-4 rounded-xl px-4 py-3 text-base">
-              Export pret:{" "}
-              <a className="underline" href={downloadUrl} download>
-                telecharger l&apos;artefact
-              </a>
-            </p>
-          )}
-        </section>
-      )}
-    </main>
+            {qualityPreview?.readiness === "blocked" && (
+              <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                Export bloque: corrigez les points critiques dans l&apos;etape Edition humaine.
+              </p>
+            )}
+
+            {analytics && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-800">
+                <p className="font-semibold text-slate-900">Analytics projet</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>Items totaux: <strong>{analytics.total_items}</strong></div>
+                  <div>Versions banque: <strong>{analytics.question_bank_versions}</strong></div>
+                  <div>Imports Pronote: <strong>{analytics.pronote_import_runs}</strong></div>
+                  <div>Dernier content_set: <strong>{analytics.latest_content_set_id ?? "-"}</strong></div>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <div>
+                    <p className="font-semibold text-slate-700">Par type</p>
+                    {Object.entries(analytics.by_item_type).map(([key, value]) => (
+                      <p key={key}>
+                        {key}: <strong>{value}</strong>
+                      </p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700">Par difficulte</p>
+                    {Object.entries(analytics.by_difficulty).map(([key, value]) => (
+                      <p key={key}>
+                        {labelDifficulty(key)}: <strong>{value}</strong>
+                      </p>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700">Exports</p>
+                    {Object.entries(analytics.export_by_format).map(([key, value]) => (
+                      <p key={key}>
+                        {key}: <strong>{value}</strong>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {downloadUrl && (
+              <p className="status-success mt-4 rounded-xl px-4 py-3 text-base">
+                Export pret:{" "}
+                <a className="underline" href={downloadUrl} download>
+                  telecharger l&apos;artefact
+                </a>
+              </p>
+            )}
+          </section>
+        )
+      }
+    </main >
   );
 }
