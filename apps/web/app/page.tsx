@@ -591,6 +591,12 @@ export default function HomePage() {
     setImportResult, setShowPronoteImportPanel,
   });
 
+  useEffect(() => {
+    if (step === 4) {
+      setShowAiReviewPopup(true);
+    }
+  }, [step]);
+
   const labelDifficulty = labelDifficultyUtil;
   const normalizeDifficultyValue = normalizeDifficultyValueUtil;
   const labelItemType = labelItemTypeUtil;
