@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<quiz>
+<!-- IMPORTANT : Ce fichier a ete genere automatiquement par SkillBeam. -->
+<!-- Une relecture attentive de l'enseignant est vivement recommandee  -->
+<!-- avant toute utilisation en classe. Verifiez la justesse factuelle  -->
+<!-- des reponses et la pertinence pedagogique de chaque question.     -->
+<question type="category">
+  <category>
+    <text><![CDATA[
+      <infos>
+        <name>liste aptitude.pdf</name>
+        <answernumbering>123</answernumbering>
+        <niveau></niveau>
+        <matiere></matiere>
+      </infos>
+    ]]></text>
+  </category>
+</question>
+<question type="matching">
+  <name><text><![CDATA[Associez chaque concept pédagogique à sa définition ou description précise ?]]></text></name>
+  <questiontext format="html">
+    <text><![CDATA[Associez chaque concept pédagogique à sa définition ou description précise ?]]></text>
+  </questiontext>
+  <externallink/>
+  <usecase>1</usecase>
+  <defaultgrade>1</defaultgrade>
+  <editeur>0</editeur>
+  <subquestion>
+    <text><![CDATA[Un levier central de réussite]]></text>
+    <answer>
+      <text><![CDATA[expliciter les critères, fractionner les objectifs, fournir des retours courts et actionnables, et permettre à chaque élève d’identifier précisément ce qu’il sait faire, ce qu’il doit stabiliser et comment y parvenir]]></text>
+    </answer>
+  </subquestion>
+  <subquestion>
+    <text><![CDATA[Livrables types]]></text>
+    <answer>
+      <text><![CDATA[grille de critères commune (attendus/indicateurs), protocole de test et banque de critères d’acceptation réutilisable sur les projets]]></text>
+    </answer>
+  </subquestion>
+  <shuffleanswers>true</shuffleanswers>
+</question>
+<question type="matching">
+  <name><text><![CDATA[Associez chaque dispositif ou outil pédagogique à son rôle ou exemple d'application ?]]></text></name>
+  <questiontext format="html">
+    <text><![CDATA[Associez chaque dispositif ou outil pédagogique à son rôle ou exemple d'application ?]]></text>
+  </questiontext>
+  <externallink/>
+  <usecase>1</usecase>
+  <defaultgrade>1</defaultgrade>
+  <editeur>0</editeur>
+  <subquestion>
+    <text><![CDATA[La plus-value attendue]]></text>
+    <answer>
+      <text><![CDATA[expertise disciplinaire, exigence méthodologique et contribution structurante au système éducatif]]></text>
+    </answer>
+  </subquestion>
+  <subquestion>
+    <text><![CDATA[Preuves de pilotage]]></text>
+    <answer>
+      <text><![CDATA[2021–2024) contribution au pilotage pédagogique en STI2D, (2024–2026) conduite de la progression et de l’organisation BTS CIEL B, adaptation du plateau technique, coordination des livrables (portfolio/rapport/oraux]]></text>
+    </answer>
+  </subquestion>
+  <shuffleanswers>true</shuffleanswers>
+</question>
+<question type="matching">
+  <name><text><![CDATA[Associez chaque contexte d'enseignement ou responsabilité à son environnement ou mission spécifique ?]]></text></name>
+  <questiontext format="html">
+    <text><![CDATA[Associez chaque contexte d'enseignement ou responsabilité à son environnement ou mission spécifique ?]]></text>
+  </questiontext>
+  <externallink/>
+  <usecase>1</usecase>
+  <defaultgrade>1</defaultgrade>
+  <editeur>0</editeur>
+  <subquestion>
+    <text><![CDATA[La plus-value attendue]]></text>
+    <answer>
+      <text><![CDATA[expertise disciplinaire, exigence méthodologique et contribution structurante au système éducatif]]></text>
+    </answer>
+  </subquestion>
+  <subquestion>
+    <text><![CDATA[Un levier central de réussite]]></text>
+    <answer>
+      <text><![CDATA[expliciter les critères, fractionner les objectifs, fournir des retours courts et actionnables, et permettre à chaque élève d’identifier précisément ce qu’il sait faire, ce qu’il doit stabiliser et comment y parvenir]]></text>
+    </answer>
+  </subquestion>
+  <shuffleanswers>true</shuffleanswers>
+</question>
+</quiz>

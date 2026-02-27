@@ -992,7 +992,8 @@ def _compute_quality_preview(
                 )
 
         if item.item_type == ItemType.MATCHING.value:
-            pair_count = len([fragment for fragment in re.split(r";|\n", correct) if "->" in fragment])
+            fragments = re.split(r"\s*;\s*|\n", correct)
+            pair_count = len([fragment for fragment in fragments if "->" in fragment or "=>" in fragment])
             if pair_count < 2:
                 score -= 10
                 issues.append(

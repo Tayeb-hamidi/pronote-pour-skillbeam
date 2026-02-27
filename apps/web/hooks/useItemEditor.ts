@@ -124,10 +124,7 @@ export function parseMatchingPairsFromItem(item: ContentItem): MatchingPair[] {
             }
             if (!left || !right) continue;
             right = normalizeMatchingDefinition(left, right);
-            if (left.split(/\s+/).length > 12) continue;
-            if (right.split(/\s+/).length < 2) continue;
-            if (right.split(/\s+/).length > 40) continue;
-            if (isWeakMatchingText(left) || isWeakMatchingText(right)) continue;
+            // Allow more flexible sizes for Pronote compatibility
             const key = `${left.toLowerCase()}::${right.toLowerCase()}`;
             if (seen.has(key)) continue;
             const leftNorm = left.toLowerCase().replace(/[^a-zà-ÿ0-9]/g, "");
@@ -145,12 +142,12 @@ export function parseMatchingPairsFromItem(item: ContentItem): MatchingPair[] {
 
     return [
         {
-            left: "Notion reseau 1",
-            right: "Description complete de la notion, redigee comme une phrase claire."
+            left: "Notion 1",
+            right: "Description complete de la notion"
         },
         {
-            left: "Notion reseau 2",
-            right: "Deuxieme description detaillee qui reste coherente avec le texte source."
+            left: "Notion 2",
+            right: "Deuxieme description detaillee"
         }
     ];
 }
@@ -197,7 +194,7 @@ function buildMatchingPatch(item: ContentItem, pairs: MatchingPair[]): Partial<C
 
     const serialized = cleaned.map((pair) => `${pair.left} -> ${pair.right}`);
     return {
-        correct_answer: serialized.join(" ; "),
+        correct_answer: serialized.join("\n"),
         answer_options: serialized,
         distractors: [],
         tags: item.tags
