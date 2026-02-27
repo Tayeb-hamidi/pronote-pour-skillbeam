@@ -10,6 +10,7 @@ import { PronoteLogoIcon, EleaLogoIcon } from "@/components/pronote-icons";
 import { Stepper } from "@/components/stepper";
 import { Tile } from "@/components/tile";
 import { useItemEditor, buildClozeExpectedAnswers, buildClozePatch } from "@/hooks/useItemEditor";
+import { useBusinessLogic } from "@/hooks/useBusinessLogic";
 import {
   type BusyPhase,
   type PronoteExerciseMode,
@@ -536,274 +537,6 @@ export default function HomePage() {
     selectFile(event.dataTransfer.files?.[0] ?? null);
   }
 
-  async function ensureAuthAndProject(): Promise<{ authToken: string; project: string }> {
-    let authToken = token;
-    if (!authToken) {
-      const email = process.env.NEXT_PUBLIC_AUTH_EMAIL ?? "demo@skillbeam.local";
-      const password = process.env.NEXT_PUBLIC_AUTH_PASSWORD ?? "demo123";
-      const auth = await login(email, password);
-      authToken = auth.access_token;
-      setToken(authToken);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("sb_token", authToken);
-      }
-    }
-
-    let project = projectId;
-    if (!project) {
-      const created = await createProject(authToken, "Projet Wizard");
-      project = created.id;
-      setProjectId(project);
-    }
-
-    return { authToken, project };
-  }
-
-  async function refreshQualityPreview(authToken: string, project: string): Promise<void> {
-    try {
-      const preview = await getQualityPreview(authToken, project);
-      setQualityPreview(preview);
-    } catch (e) {
-      setQualityPreview(null);
-      setError(e instanceof Error ? e.message : "Impossible de calculer la qualité pédagogique");
-    }
-  }
-
-  async function refreshAnalytics(authToken: string, project: string): Promise<void> {
-    try {
-      const data = await getProjectAnalytics(authToken, project);
-      setAnalytics(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Impossible de charger les analytics");
-    }
-  }
-
-  async function loadSourceDocumentForReview(authToken: string, project: string): Promise<void> {
-    const document = await getSourceDocument(authToken, project);
-    setSourceReviewText(document.plain_text);
-
-    const metadata = document.metadata ?? {};
-    const quality = metadata.source_quality;
-    if (quality && typeof quality === "object" && !Array.isArray(quality)) {
-      setSourceQuality(quality as Record<string, unknown>);
-    } else {
-      setSourceQuality({});
-    }
-    if (!subject && typeof metadata.subject === "string" && metadata.subject.trim()) {
-      setSubject(metadata.subject.trim());
-    }
-    if (
-      typeof metadata.class_level === "string" &&
-      metadata.class_level.trim() &&
-      CLASS_LEVEL_OPTIONS.includes(metadata.class_level.trim())
-    ) {
-      setClassLevel(metadata.class_level.trim());
-    }
-    if (typeof metadata.difficulty_target === "string" && metadata.difficulty_target.trim()) {
-      setDifficultyTarget(metadata.difficulty_target.trim().toLowerCase());
-    }
-    if (!learningGoal && typeof metadata.learning_goal === "string" && metadata.learning_goal.trim()) {
-      setLearningGoal(metadata.learning_goal.trim());
-    }
-  }
-
-  async function handleIngest() {
-    setBusy(true);
-    setBusyPhase("ingest");
-    setError("");
-    setDownloadUrl("");
-    setJobProgress(0);
-
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      let sourceAssetId: string | undefined;
-
-      if (sourceType === "document") {
-        if (!selectedFile) {
-          throw new Error("Document requis");
-        }
-        if (selectedFile.size > MAX_UPLOAD_BYTES) {
-          throw new Error("Le fichier depasse 200MB");
-        }
-
-        const init = await initSource(authToken, project, {
-          source_type: sourceType,
-          filename: selectedFile.name,
-          mime_type: selectedFile.type,
-          size_bytes: selectedFile.size,
-          enable_ocr: isPdfSelected ? enableOcr : false,
-          enable_table_extraction: isPdfSelected ? enableTableExtraction : false,
-          smart_cleaning: isPdfSelected ? smartCleaning : false
-        });
-        sourceAssetId = init.asset_id;
-        if (!init.upload_url) {
-          throw new Error("URL upload manquante");
-        }
-        await uploadToPresigned(init.upload_url, selectedFile);
-      } else {
-        const init = await initSource(authToken, project, {
-          source_type: sourceType,
-          raw_text: sourceType === "text" ? freeText : undefined,
-          topic: sourceType === "theme" ? topic : undefined,
-          link_url: sourceType === "youtube" ? linkUrl : undefined,
-          subject: subject.trim() || undefined,
-          class_level: classLevel.trim() || undefined,
-          difficulty_target: difficultyTarget.trim() || undefined,
-          learning_goal: learningGoal.trim() || undefined
-        });
-        sourceAssetId = init.asset_id;
-      }
-
-      const ingest = await launchIngest(authToken, project, sourceAssetId);
-      const job = await pollJobUntilDone(authToken, ingest.job_id, (next) => setJobProgress(next.progress));
-      setJobProgress(job.progress);
-      await loadSourceDocumentForReview(authToken, project);
-      setStep(3);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur ingestion");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
-
-  function buildGenerationPlan(options?: { pronoteOnly?: boolean }): {
-    contentTypes: ContentType[];
-    maxItems: number;
-    instructions?: string;
-  } {
-    const pronoteOnly = options?.pronoteOnly ?? false;
-    const activePronoteOptions = selectedPronoteOptions;
-    const pronoteTypes = activePronoteOptions.map((option) => option.contentType);
-    const baseTypes = pronoteOnly ? [] : selectedNonPronoteTypes;
-    const contentTypes = Array.from(new Set([...pronoteTypes, ...baseTypes]));
-
-    const pronoteDistribution = activePronoteOptions
-      .map((option) => `- ${option.title}: ${Math.min(100, Math.max(1, pronoteModeCounts[option.value] ?? 1))}`)
-      .join("\n");
-    const pronoteHints = activePronoteOptions.map((option) => `- ${option.title}: ${option.generationHint}`).join("\n");
-    const pronoteModeJson = activePronoteOptions.reduce<Record<string, number>>((acc, option) => {
-      acc[option.value] = Math.min(100, Math.max(1, pronoteModeCounts[option.value] ?? 1));
-      return acc;
-    }, {});
-    if (selectedPronoteModes.includes("matching")) {
-      pronoteModeJson["matching_pairs_per_question"] = matchingPairsPerQuestion;
-    }
-    const sections = [
-      evaluationType ? `TYPE D'EVALUATION: ${evaluationType === "diagnostic" ? "Évaluation diagnostique — test de positionnement avant une nouvelle séquence pour évaluer le niveau initial des élèves. Privilégier des questions de connaissance générale et de prérequis." : evaluationType === "formative" ? "Évaluation formative — évaluation en cours de séquence pédagogique pour vérifier la compréhension et les compétences en cours d'acquisition. Privilégier des questions progressives et formatives." : "Évaluation sommative — évaluation de fin de séquence pour valider les compétences travaillées. Privilégier des questions de synthèse et d'application complètes."}` : "",
-      instructions.trim(),
-      learningGoal.trim() ? `Objectif: ${learningGoal.trim()}` : "",
-      pronoteDistribution ? `Distribution pronote demandee (nb d'items):\n${pronoteDistribution}` : "",
-      pronoteHints ? `Contraintes pronote par type:\n${pronoteHints}` : "",
-      activePronoteOptions.length > 0 ? `PRONOTE_MODES_JSON: ${JSON.stringify(pronoteModeJson)}` : "",
-      "Style attendu: ne numerotez jamais les enonces (pas de Q1, Question 1, Item 1). Gardez uniquement la question."
-    ].filter(Boolean);
-
-    const nonPronoteCount = pronoteOnly ? 0 : nonPronoteRequestedCount;
-    const desired = pronoteRequestedCount + nonPronoteCount;
-
-    return {
-      contentTypes,
-      maxItems: Math.min(100, Math.max(1, desired || generationCount)),
-      instructions: sections.length > 0 ? sections.join("\n\n") : undefined
-    };
-  }
-
-  useEffect(() => {
-    if (step !== 4 || items.length === 0) return;
-    const normalized = normalizeItemsForEditor(items);
-    if (itemsNeedNormalization(items, normalized)) {
-      setItems(normalized);
-    }
-  }, [items, step]);
-
-  useEffect(() => {
-    if (step !== 1 && showPronoteImportPanel) {
-      setShowPronoteImportPanel(false);
-    }
-  }, [showPronoteImportPanel, step]);
-
-  useEffect(() => {
-    if (step === 4) {
-      setShowAiReviewPopup(true);
-    }
-  }, [step]);
-
-  // ── Auto-configure exercise presets per evaluation type ──
-  useEffect(() => {
-    if (!evaluationType) return;
-    if (evaluationType === "diagnostic") {
-      // Diagnostique: QCM simples, peu de types complexes
-      setSelectedPronoteModes(["single_choice", "multiple_choice"]);
-      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 8, multiple_choice: 4 }));
-    } else if (evaluationType === "formative") {
-      // Formative: mix progressif
-      setSelectedPronoteModes(["single_choice", "multiple_choice", "free_response", "cloze_list_unique"]);
-      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 5, multiple_choice: 3, free_response: 3, cloze_list_unique: 2 }));
-    } else if (evaluationType === "sommative") {
-      // Sommative: exercices complets, plus de variété et difficulté
-      setSelectedPronoteModes(["single_choice", "multiple_choice", "free_response", "cloze_free", "cloze_list_variable", "matching"]);
-      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 4, multiple_choice: 3, free_response: 3, cloze_free: 2, cloze_list_variable: 2, matching: 3 }));
-    }
-  }, [evaluationType]);
-
-  async function runGenerate(plan: { contentTypes: ContentType[]; maxItems: number; instructions?: string }) {
-    setBusy(true);
-    setBusyPhase("generate");
-    setError("");
-    setJobProgress(0);
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      const reviewedText = sourceReviewText.trim();
-      if (reviewedText.length > 0) {
-        await updateSourceDocument(authToken, project, { plain_text: reviewedText });
-      }
-
-      const generated = await launchGenerate(authToken, project, {
-        content_types: plan.contentTypes,
-        instructions: plan.instructions,
-        max_items: plan.maxItems,
-        language: "fr",
-        level: classLevel || "intermediate",
-        subject: subject.trim() || undefined,
-        class_level: classLevel.trim() || undefined,
-        difficulty_target: difficultyTarget.trim() || undefined
-      });
-      const job = await pollJobUntilDone(authToken, generated.job_id, (next) => setJobProgress(next.progress));
-      setJobProgress(job.progress);
-
-      const content = await getContent(authToken, project);
-      setContentSetId(content.content_set_id);
-      setItems(normalizeItemsForEditor(content.items));
-      await refreshQualityPreview(authToken, project);
-      await refreshAnalytics(authToken, project);
-      setStep(4);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur generation");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
-
-  async function handleGenerate() {
-    const plan = buildGenerationPlan();
-    if (plan.contentTypes.length === 0) {
-      setError("Selectionnez au moins un type de contenu a generer.");
-      return;
-    }
-    await runGenerate(plan);
-  }
-
-  async function handleQuickPronoteGenerate() {
-    const plan = buildGenerationPlan({ pronoteOnly: true });
-    if (plan.contentTypes.length === 0) {
-      setError("Selectionnez au moins un type d'exercice Pronote.");
-      return;
-    }
-    await runGenerate(plan);
-  }
-
   const {
     updateItem,
     addItem,
@@ -826,158 +559,37 @@ export default function HomePage() {
     dedupeChoiceValues,
   } = itemEditor;
 
-  async function handleSaveContent() {
-    setBusy(true);
-    setBusyPhase("save");
-    setError("");
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      const normalizedItems = normalizeItemsForEditor(items).map((item) => {
-        if (item.item_type !== "cloze") return item;
-        const clozePatch = buildClozePatch(item, buildClozeExpectedAnswers(item));
-        return { ...item, correct_answer: clozePatch.correct_answer };
-      });
-      setItems(normalizedItems);
-      const saved = await saveContent(authToken, project, {
-        content_set_id: contentSetId,
-        items: normalizedItems
-      });
-      setItems(normalizeItemsForEditor(saved.items));
-      await refreshQualityPreview(authToken, project);
-      await refreshAnalytics(authToken, project);
-      setStep(5);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur sauvegarde");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
-
-  async function handleExport() {
-    setBusy(true);
-    setBusyPhase("export");
-    setError("");
-    setDownloadUrl("");
-    setJobProgress(0);
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      const launch = await launchExport(authToken, project, {
-        format: exportFormat,
-        options:
-          exportFormat === "pronote_xml"
-            ? {
-              answernumbering: "123",
-              niveau: classLevel.trim() || "",
-              matiere: subject.trim() || "",
-              shuffle_answers: pronoteShuffleAnswers,
-            }
-            : {}
-      });
-      const job = await pollJobUntilDone(authToken, launch.job_id, (next) => setJobProgress(next.progress));
-      if (!job.result_id) {
-        throw new Error("Export termine sans identifiant d'artefact");
-      }
-      const downloadable = await getExportDownload(authToken, job.result_id);
-      setDownloadUrl(downloadable.url);
-      triggerBrowserDownload(downloadable.url);
-      await refreshAnalytics(authToken, project);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur export");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
-
-  async function handleSaveAndDownloadPronote() {
-    setBusy(true);
-    setBusyPhase("export");
-    setError("");
-    setDownloadUrl("");
-    setJobProgress(0);
-    setExportFormat("pronote_xml");
-
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      const normalizedItems = normalizeItemsForEditor(items).map((item) => {
-        if (item.item_type !== "cloze") return item;
-        const clozePatch = buildClozePatch(item, buildClozeExpectedAnswers(item));
-        return { ...item, correct_answer: clozePatch.correct_answer };
-      });
-      setItems(normalizedItems);
-      const saved = await saveContent(authToken, project, {
-        content_set_id: contentSetId,
-        items: normalizedItems
-      });
-      setItems(normalizeItemsForEditor(saved.items));
-      await refreshQualityPreview(authToken, project);
-
-      const launch = await launchExport(authToken, project, {
-        format: "pronote_xml",
-        options: {
-          answernumbering: "123",
-          niveau: classLevel.trim() || "",
-          matiere: subject.trim() || "",
-          shuffle_answers: pronoteShuffleAnswers,
-        }
-      });
-      const job = await pollJobUntilDone(authToken, launch.job_id, (next) => setJobProgress(next.progress));
-      if (!job.result_id) {
-        throw new Error("Export termine sans identifiant d'artefact");
-      }
-      const downloadable = await getExportDownload(authToken, job.result_id);
-      setDownloadUrl(downloadable.url);
-      triggerBrowserDownload(downloadable.url);
-      await refreshAnalytics(authToken, project);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur export PRONOTE");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
-
-  function triggerBrowserDownload(url: string) {
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "");
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  async function handleImportPronoteXml() {
-    if (!pronoteImportXml.trim()) {
-      setError("Collez le XML Pronote avant import.");
-      return;
-    }
-    setBusy(true);
-    setBusyPhase("save");
-    setError("");
-    try {
-      const { authToken, project } = await ensureAuthAndProject();
-      const imported = await importPronoteXml(authToken, project, {
-        xml_content: pronoteImportXml.trim(),
-        source_filename: pronoteImportFilename.trim() || undefined,
-        replace_current_content: replaceContentOnImport
-      });
-      setImportResult(imported);
-      const content = await getContent(authToken, project);
-      setContentSetId(content.content_set_id);
-      setItems(normalizeImportedItems ? normalizeItemsForEditor(content.items) : content.items);
-      await refreshQualityPreview(authToken, project);
-      await refreshAnalytics(authToken, project);
-      setShowPronoteImportPanel(false);
-      setStep(openEditorAfterImport ? 4 : 3);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur import Pronote");
-    } finally {
-      setBusy(false);
-      setBusyPhase(null);
-    }
-  }
+  const {
+    ensureAuthAndProject,
+    loadSourceDocumentForReview,
+    refreshQualityPreview,
+    refreshAnalytics,
+    handleIngest,
+    handleGenerate,
+    handleQuickPronoteGenerate,
+    handleSaveContent,
+    handleExport,
+    handleSaveAndDownloadPronote,
+    handleImportPronoteXml,
+  } = useBusinessLogic({
+    token, setToken, projectId, setProjectId,
+    setBusy, setBusyPhase, setError, setJobProgress, setDownloadUrl, setStep,
+    sourceType, selectedFile, freeText, topic, linkUrl,
+    subject, setSubject, classLevel, setClassLevel,
+    difficultyTarget, setDifficultyTarget, learningGoal, setLearningGoal,
+    enableOcr, enableTableExtraction, smartCleaning, isPdfSelected,
+    setSourceReviewText, sourceReviewText, setSourceQuality,
+    setQualityPreview, setAnalytics,
+    evaluationType, instructions,
+    selectedPronoteOptions, selectedNonPronoteTypes,
+    pronoteModeCounts, selectedPronoteModes, matchingPairsPerQuestion,
+    pronoteRequestedCount, nonPronoteRequestedCount, generationCount,
+    items, setItems, contentSetId, setContentSetId,
+    exportFormat, setExportFormat, pronoteShuffleAnswers,
+    pronoteImportXml, pronoteImportFilename,
+    replaceContentOnImport, normalizeImportedItems, openEditorAfterImport,
+    setImportResult, setShowPronoteImportPanel,
+  });
 
   const labelDifficulty = labelDifficultyUtil;
   const normalizeDifficultyValue = normalizeDifficultyValueUtil;
