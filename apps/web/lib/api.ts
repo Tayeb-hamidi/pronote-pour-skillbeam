@@ -16,30 +16,63 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+const REQUEST_TIMEOUT_MS = 30_000; // 30 seconds
 
 async function request<T>(
   path: string,
   options: RequestInit = {},
   token?: string
 ): Promise<T> {
-  const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      const headers = new Headers(options.headers);
+      headers.set("Content-Type", "application/json");
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+
+      const response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+        cache: "no-store",
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const status = response.status;
+        // Don't retry 4xx errors (client errors) except 429 (rate limit)
+        if (status >= 400 && status < 500 && status !== 429) {
+          throw new Error(errorText || `HTTP ${status}`);
+        }
+        throw new Error(errorText || `HTTP ${status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // Don't retry if it's a 4xx error (already thrown above)
+      if (lastError.message.startsWith("HTTP 4") && !lastError.message.startsWith("HTTP 429")) {
+        throw lastError;
+      }
+      if (attempt < MAX_RETRIES - 1) {
+        const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `HTTP ${response.status}`);
-  }
-
-  return (await response.json()) as T;
+  throw lastError ?? new Error("Request failed after retries");
 }
 
 export function login(email: string, password: string): Promise<AuthTokenResponse> {
@@ -260,9 +293,13 @@ export async function pollJobUntilDone(
   jobId: string,
   onUpdate?: (job: Job) => void
 ): Promise<Job> {
+  const deadline = Date.now() + MAX_POLL_DURATION_MS;
   let current = await getJob(token, jobId);
   onUpdate?.(current);
   while (current.status === "queued" || current.status === "running") {
+    if (Date.now() > deadline) {
+      throw new Error("Le traitement a dépassé le délai maximum de 5 minutes. Veuillez réessayer.");
+    }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     current = await getJob(token, jobId);
     onUpdate?.(current);

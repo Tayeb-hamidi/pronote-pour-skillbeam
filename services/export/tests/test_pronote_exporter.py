@@ -117,7 +117,7 @@ def test_pronote_xml_structure_and_order(tmp_path: Path) -> None:
         "<defaultgrade>1</defaultgrade>",
         "<editeur>0</editeur>",
         "<single>true</single>",
-        "<shuffleanswers>truez</shuffleanswers>",
+        "<shuffleanswers>true</shuffleanswers>",
         '<answer fraction="100" format="plain_text">',
     ]
 

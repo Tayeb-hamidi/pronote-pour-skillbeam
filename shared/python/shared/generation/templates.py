@@ -629,19 +629,43 @@ _CLOZE_JUNK_CORRECT_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
+# Pattern for extracting all %100% values from inline cloze tokens
+_CLOZE_INLINE_CORRECT_PATTERN = re.compile(r"%100%([^#}]+)")
+
 
 def _cloze_item_needs_llm_repair(item: GeneratedItem) -> bool:
-    """Check if a cloze item has placeholder/instruction words as answers."""
+    """Check if a cloze item has placeholder/instruction words as answers.
+
+    Now checks ALL inline %100% values — catches short uppercase tokens
+    like STI, TCP, etc. that are NOT in the explicit junk patterns but are
+    clearly wrong answers (< 4 chars, all-caps placeholders).
+    """
     if item.item_type != ItemType.CLOZE:
         return False
     correct = (item.correct_answer or "").lower()
-    prompt = (item.prompt or "").lower()
+    prompt = item.prompt or ""
     if _CLOZE_JUNK_CORRECT_PATTERN.search(correct):
         return True
-    if re.search(r"%100%mot\d+", prompt):
+
+    # ── Scan ALL inline %100% values for junk ──
+    for match in _CLOZE_INLINE_CORRECT_PATTERN.finditer(prompt):
+        value = match.group(1).strip()
+        if not value:
+            continue
+        # Short tokens (≤ 3 chars) with no spaces — almost always placeholders
+        if len(value) <= 3 and " " not in value:
+            return True
+        # Placeholder variables: mot2, word1, blank3, etc.
+        if re.match(r"^(?:mot|word|var|blank|item|option)\s*\d+$", value, flags=re.IGNORECASE):
+            return True
+        # Known instruction words
+        if _CLOZE_JUNK_CORRECT_PATTERN.match(value):
+            return True
+
+    # ── Also flag items whose prompt starts with "Associez" (broken matching) ──
+    if re.match(r"^\s*Associez\b", prompt, flags=re.IGNORECASE):
         return True
-    if re.search(r"%100%(?:requis|suivant|chaque|approprié)", prompt, flags=re.IGNORECASE):
-        return True
+
     return False
 
 
@@ -661,9 +685,14 @@ def _repair_cloze_items_via_llm(
 
     descriptions: list[str] = []
     for idx in repair_indexes:
+        raw_prompt = items[idx].prompt or ""
         clean_prompt = re.sub(
-            r"\{:MULTICHOICE:[^}]+\}", "____", items[idx].prompt or ""
+            r"\{:MULTICHOICE:[^}]+\}", "____", raw_prompt
         )
+        # Extract the word bank if present (e.g. "[protocoles, commutateur, ...]")
+        word_bank_match = re.search(r"\[([^\]\[]{4,300})\]", raw_prompt)
+        if word_bank_match:
+            clean_prompt += f"\n  MOTS ATTENDUS: {word_bank_match.group(1)}"
         descriptions.append(f"Question {idx + 1}: {clean_prompt}")
 
     repair_prompt = dedent(
@@ -675,8 +704,10 @@ def _repair_cloze_items_via_llm(
         REGLES STRICTES:
         - Chaque trou = 1 seul mot ou expression courte (2-3 mots max)
         - Les mots doivent venir du texte source et avoir un sens dans la phrase
-        - JAMAIS de placeholder (mot2, mot3, requis, suivant, approprié, etc.)
+        - JAMAIS de placeholder (mot2, mot3, STI, requis, suivant, approprié, etc.)
+        - JAMAIS de mot de 3 lettres ou moins sauf acronymes connus (TCP, IP, DNS)
         - Fournis les mots dans l'ORDRE des trous (de gauche a droite)
+        - Si la question indique "MOTS ATTENDUS", utilise ces mots dans le bon trou
 
         Retourne UNIQUEMENT un JSON valide:
         {{"repairs": [
@@ -1360,15 +1391,21 @@ def _rule_based_fallback(
                 )
             )
         elif content_type == ContentType.POLL:
+            # Build poll options from OTHER source sentences (not meta-text)
+            other_sentences = [s for j, s in enumerate(sentences) if j != index % len(sentences)]
+            poll_options = [s[:100] for s in other_sentences[:3]]
+            if len(poll_options) < 2:
+                poll_options = [
+                    f"Aspect principal de: {sentences[0][:60]}",
+                    f"Consequence de: {sentences[min(1, len(sentences) - 1)][:60]}",
+                    f"Application de: {sentences[min(2, len(sentences) - 1)][:60]}",
+                ]
             items.append(
                 GeneratedItem(
                     item_type=ItemType.POLL,
                     prompt=f"Sondage {number}: quel angle est le plus pertinent pour '{sentence[:60]}' ?",
-                    answer_options=[
-                        "Approche theorique",
-                        "Approche pratique",
-                        "Approche critique",
-                    ],
+                    correct_answer=poll_options[0] if poll_options else sentence[:80],
+                    answer_options=poll_options,
                     tags=["poll"],
                     difficulty="easy",
                     source_reference=f"section:{(index % len(sentences)) + 1}",

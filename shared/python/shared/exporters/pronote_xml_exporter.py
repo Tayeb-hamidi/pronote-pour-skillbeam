@@ -142,6 +142,9 @@ CLOZE_STOPWORDS: set[str] = {
     "trou",
     "trous",
 }
+CLOZE_WORD_BANK_PATTERN = re.compile(
+    r"\[([^\]\[]{4,300})\]",
+)
 MATCHING_PLACEHOLDER_PATTERN = re.compile(
     r"^(definition\s+de|def\s+de|desc\s+de|element\s+[a-z0-9]+|notion\s+[a-z0-9]+|terme\s+[a-z0-9]+)\b",
     flags=re.IGNORECASE,
@@ -510,6 +513,96 @@ def _is_junk_answer(value: str) -> bool:
     if len(cleaned) < 4 and " " not in cleaned:
         return True
     return False
+
+
+def _extract_cloze_word_bank(prompt: str) -> list[str]:
+    """Extract bracketed word bank from cloze prompts like '[word1, word2, word3]'.
+
+    Many LLM-generated cloze prompts contain the expected answers in square
+    brackets in the instruction line.  These are the BEST source of correct
+    answers because they come directly from the LLM's own instruction.
+
+    NOTE: we intentionally use a LESS AGGRESSIVE filter than _is_junk_answer
+    here because short ALL-CAPS acronyms (MAC, DNS, IP, TCP) are legitimate
+    answers in a word bank context — the LLM explicitly listed them.
+    """
+    match = CLOZE_WORD_BANK_PATTERN.search(prompt)
+    if not match:
+        return []
+    raw = match.group(1)
+    # Must look like a comma-separated list (at least 2 items)
+    words = [w.strip() for w in raw.split(",")]
+    if len(words) < 2:
+        return []
+    result: list[str] = []
+    for w in words:
+        if not w or len(w) < 2:
+            continue
+        # Allow short ALL-CAPS (acronyms: MAC, DNS, IP, TCP, etc.)
+        if w.isupper() and len(w) >= 2:
+            result.append(w)
+            continue
+        # For non-acronyms, use standard junk check BUT relax the min-length
+        # to 4 chars (word bank words like "protocoles" are always valid)
+        lowered = w.lower()
+        if _PLACEHOLDER_VAR_PATTERN.match(w):
+            continue
+        if lowered in CLOZE_STOPWORDS:
+            continue
+        if lowered in _JUNK_ANSWER_LOWER:
+            continue
+        result.append(w)
+    return result
+
+
+def _is_junk_cloze_correct_in_context(value: str, *, has_word_bank: bool) -> bool:
+    """Check if a %100% value is junk, respecting word-bank context.
+
+    When a word bank was used (has_word_bank=True), short ALL-CAPS acronyms
+    like MAC, DNS, IP are trusted because the LLM explicitly listed them.
+    """
+    if has_word_bank and value.isupper() and len(value) >= 2:
+        # Short ALL-CAPS from word bank → trust it (acronyms like MAC, IP, DNS)
+        return False
+    return _is_junk_answer(value)
+
+
+def _final_cloze_validation(cloze_text: str) -> str:
+    """Final safety-net: remove any remaining tokens with junk %100% values.
+
+    This runs AFTER _repair_inline_cloze_tokens and catches anything that
+    slipped through the repair logic (wrong fallback, unexpected LLM output).
+    Returns empty string if fewer than 2 valid tokens remain.
+    """
+    # Detect if word bank was used (presence of bracket pattern in text)
+    has_word_bank = bool(CLOZE_WORD_BANK_PATTERN.search(cloze_text))
+
+    total_tokens = 0
+    junk_tokens = 0
+
+    def _check_token(match: re.Match[str]) -> str:
+        nonlocal total_tokens, junk_tokens
+        total_tokens += 1
+        payload = match.group(1)
+        parsed = _parse_inline_cloze_token(payload)
+        # Check if ALL non-zero-fraction options are junk
+        correct_options = [
+            text for fraction, text in parsed
+            if fraction and fraction not in {"0", "0.0", "0,0"}
+        ]
+        if not correct_options or all(
+            _is_junk_cloze_correct_in_context(c, has_word_bank=has_word_bank)
+            for c in correct_options
+        ):
+            junk_tokens += 1
+            return ""  # Remove this token
+        return match.group(0)  # Keep
+
+    result = CLOZE_TOKEN_PATTERN.sub(_check_token, cloze_text)
+    remaining = total_tokens - junk_tokens
+    if remaining < 2:
+        return ""  # Not enough valid tokens → drop entire question
+    return result
 
 
 def _cdata(value: str) -> str:
@@ -945,6 +1038,25 @@ def _extract_prompt_candidate_terms(prompt: str) -> list[str]:
     return candidates
 
 
+def _extract_prompt_context_words(prompt: str) -> set[str]:
+    """Extract lower-cased words from the non-token portions of a cloze prompt.
+
+    Used to avoid picking distractors from the surrounding sentence text
+    (e.g. "réseau", "informatique", "L'adresse") which look obviously wrong
+    to a student because they already appear in the question text.
+    """
+    # Remove inline cloze tokens
+    stripped = CLOZE_TOKEN_PATTERN.sub(" ", prompt)
+    # Remove the word-bank bracket if present
+    stripped = CLOZE_WORD_BANK_PATTERN.sub(" ", stripped)
+    words: set[str] = set()
+    for token in re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'-]*", stripped):
+        lowered = token.lower().strip("'-")
+        if len(lowered) >= 3:
+            words.add(lowered)
+    return words
+
+
 def _build_cloze_fallback_distractors(
     *,
     correct: str,
@@ -956,6 +1068,9 @@ def _build_cloze_fallback_distractors(
     seen = {normalized_correct.lower()} if normalized_correct else set()
     distractors: list[str] = []
 
+    # Words already visible in the prompt text — terrible distractors
+    prompt_context = _extract_prompt_context_words(prompt)
+
     def push(candidate: str) -> None:
         normalized = _normalize_text(candidate)
         if not normalized:
@@ -966,6 +1081,9 @@ def _build_cloze_fallback_distractors(
         if _is_junk_answer(normalized):
             return
         if key in CLOZE_STOPWORDS:
+            return
+        # Reject distractors that are just a word from the prompt text
+        if key in prompt_context:
             return
         seen.add(key)
         distractors.append(normalized)
@@ -995,6 +1113,14 @@ def _repair_inline_cloze_tokens(
     if not token_matches:
         return prompt
 
+    # ── Word-bank priority mode ──
+    # When the prompt contains a bracketed word bank with EXACTLY as many words
+    # as blanks, we trust the word bank order and override ALL correct answers.
+    # This fixes the common case where the LLM lists correct words in brackets
+    # but puts wrong words inside the {:MULTICHOICE:...} tokens.
+    word_bank = _extract_cloze_word_bank(prompt)
+    use_word_bank_order = len(word_bank) == len(token_matches) and len(word_bank) >= 2
+
     # One replacement per original token: valid → rebuilt cloze, junk → None (removed)
     replacements: list[str | None] = []
 
@@ -1009,44 +1135,66 @@ def _repair_inline_cloze_tokens(
 
     for index, match in enumerate(token_matches):
         parsed_options = _parse_inline_cloze_token(match.group(1))
-        parsed_correct = [
-            text
-            for fraction, text in parsed_options
-            if fraction and fraction not in {"0", "0.0", "0,0"} and not _is_junk_answer(text)
-        ]
-        correct = (
-            parsed_correct[0]
-            if parsed_correct
-            else expected_answers[index]
-            if index < len(expected_answers) and not _is_junk_answer(expected_answers[index])
-            else next((a for a in expected_answers if not _is_junk_answer(a)), None)
-            or next((a for a in all_valid_correct if a not in {c for c in all_valid_correct[:index]}), None)
-            or "Reponse attendue"
-        )
 
-        # Junk correct answer → mark token for removal
-        if _is_junk_answer(correct):
-            replacements.append(None)
-            continue
+        # ── Determine correct answer ──
+        if use_word_bank_order:
+            # PRIORITY: use word bank word at this position (LLM's stated intention)
+            correct = word_bank[index]
+        else:
+            parsed_correct = [
+                text
+                for fraction, text in parsed_options
+                if fraction and fraction not in {"0", "0.0", "0,0"} and not _is_junk_answer(text)
+            ]
+            correct = (
+                parsed_correct[0]
+                if parsed_correct
+                else expected_answers[index]
+                if index < len(expected_answers) and not _is_junk_answer(expected_answers[index])
+                else next((a for a in expected_answers if not _is_junk_answer(a)), None)
+                or next((a for a in all_valid_correct if a not in {c for c in all_valid_correct[:index]}), None)
+                or "Reponse attendue"
+            )
 
-        parsed_distractors = [
-            text
-            for fraction, text in parsed_options
-            if fraction in {"0", "0.0", "0,0"} and not _is_junk_answer(text)
-        ]
-        # Exclude other blanks' correct answers from seed_values
-        other_correct = {c.lower() for c in all_valid_correct if c != correct}
-        seed_values = [
-            v for v in [*parsed_distractors, *expected_answers, *distractor_pool]
-            if not _is_junk_answer(v) and v.lower() not in other_correct
-        ]
-        distractors = _build_cloze_fallback_distractors(
-            correct=correct,
-            seed_values=seed_values,
-            prompt=prompt,
-            limit=3,
-        )
-        replacements.append(_cloze_token(correct, distractors))
+        # Junk correct answer → mark token for removal.
+        # In word-bank-priority mode, we TRUST the word bank words even if
+        # they are short (MAC, DNS, IP) — they were explicitly listed by the LLM.
+        # Only reject placeholders and stopwords.
+        if use_word_bank_order:
+            lowered_correct = correct.lower()
+            if _PLACEHOLDER_VAR_PATTERN.match(correct) or lowered_correct in CLOZE_STOPWORDS:
+                replacements.append(None)
+                continue
+        else:
+            if _is_junk_answer(correct):
+                replacements.append(None)
+                continue
+
+        # ── Build distractors ──
+        if use_word_bank_order:
+            # In word-bank mode, the BEST distractors are OTHER word bank words.
+            # This is pedagogically correct: students pick from the word bank.
+            wb_distractors = [w for w in word_bank if w != correct]
+            replacements.append(_cloze_token(correct, wb_distractors[:3]))
+        else:
+            parsed_distractors = [
+                text
+                for fraction, text in parsed_options
+                if fraction in {"0", "0.0", "0,0"} and not _is_junk_answer(text)
+            ]
+            # Exclude other blanks' correct answers from seed_values
+            other_correct = {c.lower() for c in all_valid_correct if c != correct}
+            seed_values = [
+                v for v in [*parsed_distractors, *expected_answers, *distractor_pool]
+                if not _is_junk_answer(v) and v.lower() not in other_correct
+            ]
+            distractors = _build_cloze_fallback_distractors(
+                correct=correct,
+                seed_values=seed_values,
+                prompt=prompt,
+                limit=3,
+            )
+            replacements.append(_cloze_token(correct, distractors))
 
     # Replace ALL tokens: valid → rebuilt cloze, junk → removed (empty string)
     replacement_iter = iter(replacements)
@@ -1060,17 +1208,27 @@ def _repair_inline_cloze_tokens(
 
 def _build_cloze_text(prompt: str, correct_answers: list[str], distractors: list[str]) -> str:
     text = (prompt or "").strip()
-    expected_answers = _dedupe_non_empty(correct_answers)
+
+    # ── Extract word bank from prompt (e.g. "[protocoles, commutateur, ...]") ──
+    # These words are the BEST source of correct answers because they come
+    # directly from the LLM-generated instruction line.
+    word_bank = _extract_cloze_word_bank(text)
+
+    # Merge: word bank first (most reliable), then caller's correct_answers
+    expected_answers = _dedupe_non_empty([*word_bank, *correct_answers])
     distractor_pool = _dedupe_non_empty(
         [value for value in distractors if not _is_junk_answer(value)]
     )
 
     if "{:MULTICHOICE:" in text:
-        return _repair_inline_cloze_tokens(
+        repaired = _repair_inline_cloze_tokens(
             prompt=text,
             expected_answers=expected_answers,
             distractor_pool=distractor_pool,
         )
+        # ── Final safety-net: remove any surviving junk tokens ──
+        repaired = _final_cloze_validation(repaired)
+        return repaired
 
     if CLOZE_PLACEHOLDER_PATTERN.search(text):
         fallback_answers = expected_answers or ["Reponse attendue"]
@@ -1277,6 +1435,26 @@ def _append_cloze(
     )
 
 
+def _append_cloze_raw(
+    rows: list[str], *, prompt_name: str, cloze_text: str
+) -> None:
+    """Append a cloze question from pre-built cloze text (already validated)."""
+    rows.extend(
+        [
+            '<question type="cloze" desc="variable">',
+            f"  <name><text>{_cdata(_derive_name(prompt_name))}</text></name>",
+            '  <questiontext format="html">',
+            f"    <text>{_cdata(cloze_text)}</text>",
+            "  </questiontext>",
+            "  <externallink/>",
+            "  <usecase>1</usecase>",
+            "  <defaultgrade>1</defaultgrade>",
+            "  <editeur>0</editeur>",
+            "</question>",
+        ]
+    )
+
+
 def _append_matching(rows: list[str], prompt: str, pairs: list[tuple[str, str]]) -> None:
     rows.extend(
         [
@@ -1431,17 +1609,22 @@ class PronoteXmlExporter(BaseExporter):
                 continue
 
             if item_type == "cloze":
+                # ── Skip "Associez" cloze: these are broken matching questions ──
+                if re.match(r"^\s*Associez\b", prompt, flags=re.IGNORECASE):
+                    continue
+
                 has_inline_token = "{:MULTICHOICE:" in prompt
                 cloze_correct = _split_expected_answers(correct)
                 if not has_inline_token and not cloze_correct:
                     continue
                 seed_distractors = _dedupe_non_empty([*item.distractors, *answer_options])
-                _append_cloze(
-                    rows,
-                    prompt=prompt,
-                    correct_answers=cloze_correct,
-                    distractors=seed_distractors,
-                )
+
+                # Build cloze text first, then validate before appending
+                cloze_text = _build_cloze_text(prompt, cloze_correct, seed_distractors)
+                if not cloze_text or not CLOZE_TOKEN_PATTERN.search(cloze_text):
+                    continue  # Drop: no valid tokens remain after repair
+
+                _append_cloze_raw(rows, prompt_name=prompt, cloze_text=cloze_text)
                 exported_count += 1
                 continue
 
