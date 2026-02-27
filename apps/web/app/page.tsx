@@ -57,11 +57,11 @@ const SOURCE_OPTIONS: Array<{
   subtitle: string;
   badge: string;
 }> = [
-  { value: "document", title: "Document", subtitle: "PDF, DOCX, PPTX, TXT, MD", badge: "DOC" },
-  { value: "text", title: "Texte", subtitle: "Saisie manuelle rapide", badge: "TXT" },
-  { value: "theme", title: "Thématique", subtitle: "Sujet à développer", badge: "TOP" },
-  { value: "youtube", title: "YouTube", subtitle: "URL video avec sous-titres", badge: "YT" }
-];
+    { value: "document", title: "Document", subtitle: "PDF, DOCX, PPTX, TXT, MD", badge: "DOC" },
+    { value: "text", title: "Texte", subtitle: "Saisie manuelle rapide", badge: "TXT" },
+    { value: "theme", title: "Thématique", subtitle: "Sujet à développer", badge: "TOP" },
+    { value: "youtube", title: "YouTube", subtitle: "URL video avec sous-titres", badge: "YT" }
+  ];
 
 const CONTENT_OPTIONS: Array<{ value: ContentType; title: string; subtitle: string }> = [
   {
@@ -95,97 +95,97 @@ const PRONOTE_EXERCISE_OPTIONS: Array<{
   contentType: ContentType;
   generationHint: string;
 }> = [
-  {
-    value: "single_choice",
-    title: "Choix unique",
-    subtitle: "1 bonne reponse parmi plusieurs",
-    contentType: "mcq",
-    generationHint: "1 seule bonne reponse clairement identifiable."
-  },
-  {
-    value: "multiple_choice",
-    title: "Choix multiple",
-    subtitle: "Plusieurs bonnes reponses",
-    contentType: "poll",
-    generationHint: "proposer plusieurs options pertinentes pour selection multiple."
-  },
-  {
-    value: "numeric_value",
-    title: "Valeur numerique",
-    subtitle: "Reponse attendue en format numerique",
-    contentType: "open_question",
-    generationHint: "attendre une reponse numerique et une unite si utile."
-  },
-  {
-    value: "free_response",
-    title: "Reponse a saisir",
-    subtitle: "Texte libre court",
-    contentType: "open_question",
-    generationHint: "reponse courte a saisir avec formulation precise."
-  },
-  {
-    value: "spelling",
-    title: "Epellation",
-    subtitle: "Mot ou expression a epeler",
-    contentType: "open_question",
-    generationHint: "demander explicitement une reponse epellee lettre par lettre."
-  },
-  {
-    value: "cloze_free",
-    title: "Texte a trous libre",
-    subtitle: "Sans liste d'aide",
-    contentType: "cloze",
-    generationHint: "texte a trous sans proposition de reponses."
-  },
-  {
-    value: "cloze_list_unique",
-    title: "Texte a trous liste unique",
-    subtitle: "Liste commune pour tous les trous",
-    contentType: "cloze",
-    generationHint: "texte a trous avec banque commune de mots."
-  },
-  {
-    value: "cloze_list_variable",
-    title: "Texte a trous liste variable",
-    subtitle: "Une liste par trou",
-    contentType: "cloze",
-    generationHint: "texte a trous avec options specifiques a chaque trou."
-  },
-  {
-    value: "matching",
-    title: "Association",
-    subtitle: "Relier elements gauche / droite",
-    contentType: "matching",
-    generationHint: "generer des paires a associer, chaque element gauche correspond a un element droite unique."
-  }
-];
+    {
+      value: "single_choice",
+      title: "Choix unique",
+      subtitle: "1 bonne reponse parmi plusieurs",
+      contentType: "mcq",
+      generationHint: "1 seule bonne reponse clairement identifiable."
+    },
+    {
+      value: "multiple_choice",
+      title: "Choix multiple",
+      subtitle: "Plusieurs bonnes reponses",
+      contentType: "poll",
+      generationHint: "proposer plusieurs options pertinentes pour selection multiple."
+    },
+    {
+      value: "numeric_value",
+      title: "Valeur numerique",
+      subtitle: "Reponse attendue en format numerique",
+      contentType: "open_question",
+      generationHint: "attendre une reponse numerique et une unite si utile."
+    },
+    {
+      value: "free_response",
+      title: "Reponse a saisir",
+      subtitle: "Texte libre court",
+      contentType: "open_question",
+      generationHint: "reponse courte a saisir avec formulation precise."
+    },
+    {
+      value: "spelling",
+      title: "Epellation",
+      subtitle: "Mot ou expression a epeler",
+      contentType: "open_question",
+      generationHint: "demander explicitement une reponse epellee lettre par lettre."
+    },
+    {
+      value: "cloze_free",
+      title: "Texte a trous libre",
+      subtitle: "Sans liste d'aide",
+      contentType: "cloze",
+      generationHint: "texte a trous sans proposition de reponses."
+    },
+    {
+      value: "cloze_list_unique",
+      title: "Texte a trous liste unique",
+      subtitle: "Liste commune pour tous les trous",
+      contentType: "cloze",
+      generationHint: "texte a trous avec banque commune de mots."
+    },
+    {
+      value: "cloze_list_variable",
+      title: "Texte a trous liste variable",
+      subtitle: "Une liste par trou",
+      contentType: "cloze",
+      generationHint: "texte a trous avec options specifiques a chaque trou."
+    },
+    {
+      value: "matching",
+      title: "Association",
+      subtitle: "Relier elements gauche / droite",
+      contentType: "matching",
+      generationHint: "generer des paires a associer, chaque element gauche correspond a un element droite unique."
+    }
+  ];
 
 const PRONOTE_EXERCISE_FAMILIES: Array<{
   title: string;
   subtitle: string;
   modes: PronoteExerciseMode[];
 }> = [
-  {
-    title: "QCM",
-    subtitle: "Choix parmi des propositions",
-    modes: ["single_choice", "multiple_choice"]
-  },
-  {
-    title: "Saisie de reponse",
-    subtitle: "Reponse numerique, texte libre, epellation",
-    modes: ["numeric_value", "free_response", "spelling"]
-  },
-  {
-    title: "Texte a trous",
-    subtitle: "Libre, liste unique, liste variable",
-    modes: ["cloze_free", "cloze_list_unique", "cloze_list_variable"]
-  },
-  {
-    title: "Association",
-    subtitle: "Relier des elements entre eux",
-    modes: ["matching"]
-  }
-];
+    {
+      title: "QCM",
+      subtitle: "Choix parmi des propositions",
+      modes: ["single_choice", "multiple_choice"]
+    },
+    {
+      title: "Saisie de reponse",
+      subtitle: "Reponse numerique, texte libre, epellation",
+      modes: ["numeric_value", "free_response", "spelling"]
+    },
+    {
+      title: "Texte a trous",
+      subtitle: "Libre, liste unique, liste variable",
+      modes: ["cloze_free", "cloze_list_unique", "cloze_list_variable"]
+    },
+    {
+      title: "Association",
+      subtitle: "Relier des elements entre eux",
+      modes: ["matching"]
+    }
+  ];
 
 const EXPORT_OPTIONS: Array<{ value: ExportFormat; title: string; subtitle: string }> = [
   { value: "docx", title: "Word (DOCX)", subtitle: "Document modifiable" },
@@ -334,6 +334,8 @@ export default function HomePage() {
   const [subject, setSubject] = useState<string>("");
   const [classLevel, setClassLevel] = useState<string>("");
   const [difficultyTarget, setDifficultyTarget] = useState<string>("medium");
+  const [evaluationType, setEvaluationType] = useState<string>("");
+  const [platform, setPlatform] = useState<string>("");
   const [learningGoal, setLearningGoal] = useState<string>("");
   const [sourceReviewText, setSourceReviewText] = useState<string>("");
   const [enableOcr, setEnableOcr] = useState<boolean>(false);
@@ -379,6 +381,7 @@ export default function HomePage() {
   const [busyPhase, setBusyPhase] = useState<BusyPhase>(null);
   const [error, setError] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [showAiReviewPopup, setShowAiReviewPopup] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pronoteImportFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -698,6 +701,7 @@ export default function HomePage() {
       pronoteModeJson["matching_pairs_per_question"] = matchingPairsPerQuestion;
     }
     const sections = [
+      evaluationType ? `TYPE D'EVALUATION: ${evaluationType === "diagnostic" ? "Évaluation diagnostique — test de positionnement avant une nouvelle séquence pour évaluer le niveau initial des élèves. Privilégier des questions de connaissance générale et de prérequis." : evaluationType === "formative" ? "Évaluation formative — évaluation en cours de séquence pédagogique pour vérifier la compréhension et les compétences en cours d'acquisition. Privilégier des questions progressives et formatives." : "Évaluation sommative — évaluation de fin de séquence pour valider les compétences travaillées. Privilégier des questions de synthèse et d'application complètes."}` : "",
       instructions.trim(),
       learningGoal.trim() ? `Objectif: ${learningGoal.trim()}` : "",
       pronoteDistribution ? `Distribution pronote demandee (nb d'items):\n${pronoteDistribution}` : "",
@@ -729,6 +733,30 @@ export default function HomePage() {
       setShowPronoteImportPanel(false);
     }
   }, [showPronoteImportPanel, step]);
+
+  useEffect(() => {
+    if (step === 4) {
+      setShowAiReviewPopup(true);
+    }
+  }, [step]);
+
+  // ── Auto-configure exercise presets per evaluation type ──
+  useEffect(() => {
+    if (!evaluationType) return;
+    if (evaluationType === "diagnostic") {
+      // Diagnostique: QCM simples, peu de types complexes
+      setSelectedPronoteModes(["single_choice", "multiple_choice"]);
+      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 8, multiple_choice: 4 }));
+    } else if (evaluationType === "formative") {
+      // Formative: mix progressif
+      setSelectedPronoteModes(["single_choice", "multiple_choice", "free_response", "cloze_list_unique"]);
+      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 5, multiple_choice: 3, free_response: 3, cloze_list_unique: 2 }));
+    } else if (evaluationType === "sommative") {
+      // Sommative: exercices complets, plus de variété et difficulté
+      setSelectedPronoteModes(["single_choice", "multiple_choice", "free_response", "cloze_free", "cloze_list_variable", "matching"]);
+      setPronoteModeCounts((prev) => ({ ...prev, single_choice: 4, multiple_choice: 3, free_response: 3, cloze_free: 2, cloze_list_variable: 2, matching: 3 }));
+    }
+  }, [evaluationType]);
 
   async function runGenerate(plan: { contentTypes: ContentType[]; maxItems: number; instructions?: string }) {
     setBusy(true);
@@ -875,11 +903,11 @@ export default function HomePage() {
         options:
           exportFormat === "pronote_xml"
             ? {
-                answernumbering: "123",
-                niveau: classLevel.trim() || "",
-                matiere: subject.trim() || "",
-                shuffle_answers: pronoteShuffleAnswers,
-              }
+              answernumbering: "123",
+              niveau: classLevel.trim() || "",
+              matiere: subject.trim() || "",
+              shuffle_answers: pronoteShuffleAnswers,
+            }
             : {}
       });
       const job = await pollJobUntilDone(authToken, launch.job_id, (next) => setJobProgress(next.progress));
@@ -1411,7 +1439,10 @@ export default function HomePage() {
             />
             <p className="brand-title text-xs font-bold tracking-[0.18em] text-slate-400 uppercase pl-1">AI-édu Quiz</p>
           </div>
-          <span className="teacher-badge">Espace enseignant</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
+            <span className="teacher-badge">Espace enseignant</span>
+            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontFamily: "monospace" }}>v0.2.0</span>
+          </div>
         </div>
         <p className="mb-5 max-w-3xl text-[1.2rem] font-semibold text-slate-800">
           Creez des exercices Pronote en 5 etapes.
@@ -1610,6 +1641,7 @@ export default function HomePage() {
               />
             ))}
           </div>
+
         </section>
       )}
 
@@ -1846,248 +1878,326 @@ export default function HomePage() {
           <h2 className="step-title mb-2 text-4xl text-slate-900">3. Choix du contenu a generer</h2>
           <p className="mb-4 text-lg text-slate-700">Definissez le type d&apos;activites et le volume souhaite.</p>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {CONTENT_OPTIONS.filter((option) => option.value === "mcq").map((option) => {
-              const selected = selectedPronoteModes.length > 0;
-              return (
-                <Tile
-                  key={option.value}
-                  title={option.title}
-                  subtitle={option.subtitle}
-                  selected={selected}
-                  variant="pronote"
-                  icon={<PronoteLogoIcon />}
-                  eyebrow="Creer facilement un QCM pour Pronote"
-                  className="qcm-pronote-hero sm:col-span-2 lg:col-span-3"
-                  extra={
-                    <div
-                      className="qcm-pronote-controls mt-1 rounded-xl border border-emerald-300 bg-white/70 p-3"
-                      onClick={(event) => event.stopPropagation()}
-                      onMouseDown={(event) => event.stopPropagation()}
-                    >
-                      <p className="mb-2 text-sm font-semibold text-emerald-900">Parcours simplifie Pronote</p>
-                      <h4 className="pronote-panel-title">Types d&apos;exercices Pronote</h4>
-                      <p className="mb-2 text-sm text-slate-700">
-                        Uniquement les formats Pronote: choix unique, choix multiple, valeur numerique, reponse a saisir,
-                        epellation et textes a trous.
-                      </p>
+          <div className="eval-type-section">
+            <p className="eval-type-label"><span className="eval-step-badge">Étape 1</span> Type d&apos;évaluation</p>
+            <div className="eval-type-grid">
+              <button
+                type="button"
+                className={`eval-type-card eval-type-diagnostic ${evaluationType === "diagnostic" ? "is-selected" : ""}`}
+                onClick={() => setEvaluationType(evaluationType === "diagnostic" ? "" : "diagnostic")}
+              >
+                <span className="eval-type-icon">🔍</span>
+                <span className="eval-type-name">Diagnostique</span>
+                <span className="eval-type-desc">Avant une séquence, tester le niveau des élèves</span>
+              </button>
+              <button
+                type="button"
+                className={`eval-type-card eval-type-formative ${evaluationType === "formative" ? "is-selected" : ""}`}
+                onClick={() => setEvaluationType(evaluationType === "formative" ? "" : "formative")}
+              >
+                <span className="eval-type-icon">📊</span>
+                <span className="eval-type-name">Formative</span>
+                <span className="eval-type-desc">En cours de séquence, évaluer les compétences</span>
+              </button>
+              <button
+                type="button"
+                className={`eval-type-card eval-type-sommative ${evaluationType === "sommative" ? "is-selected" : ""}`}
+                onClick={() => setEvaluationType(evaluationType === "sommative" ? "" : "sommative")}
+              >
+                <span className="eval-type-icon">🏆</span>
+                <span className="eval-type-name">Sommative</span>
+                <span className="eval-type-desc">Fin de séquence, valider les compétences acquises</span>
+              </button>
+            </div>
+            {evaluationType && (
+              <p className="eval-type-hint">
+                {evaluationType === "diagnostic" && "\u2705 Pr\u00e9s\u00e9lection : QCM simples (choix unique + choix multiple) pour tester les pr\u00e9requis."}
+                {evaluationType === "formative" && "\u2705 Pr\u00e9s\u00e9lection : mix progressif (QCM + saisie + texte \u00e0 trous) pour \u00e9valuer la compr\u00e9hension."}
+                {evaluationType === "sommative" && "\u2705 Pr\u00e9s\u00e9lection : exercices vari\u00e9s et complets (QCM + saisie + trous + association) pour valider les comp\u00e9tences."}
+              </p>
+            )}
+          </div>
 
-                      <div className="pronote-family-grid">
-                        {PRONOTE_EXERCISE_FAMILIES.map((family) => (
-                          <div key={family.title} className="pronote-family-card">
-                            <p className="pronote-family-title">{family.title}</p>
-                            <p className="pronote-family-subtitle">{family.subtitle}</p>
-                            <div className="pronote-choice-grid">
-                              {family.modes.map((mode) => {
-                                const option = pronoteModeByValue.get(mode);
-                                if (!option) {
-                                  return null;
-                                }
-                                const checked = selectedPronoteModes.includes(mode);
-                                return (
-                                  <button
-                                    key={mode}
-                                    type="button"
-                                    className={clsx("pronote-choice-btn", checked && "is-selected")}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      if (!checked) togglePronoteMode(mode);
-                                      setCountPopup(mode);
-                                    }}
-                                  >
-                                    <span className="pronote-choice-title">
-                                      {checked ? "✓ " : ""}
-                                      {option.title}
-                                    </span>
-                                    <span className="pronote-choice-subtitle">{option.subtitle}</span>
-                                    {checked && (
-                                      <span className="pronote-choice-badge">
-                                        ×{pronoteModeCounts[mode] ?? 1}
-                                        {mode === "matching" && ` · ${matchingPairsPerQuestion}p`}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
+          <div className={`eval-type-section ${!evaluationType ? "is-locked-light" : ""}`}>
+            <p className="eval-type-label"><span className="eval-step-badge">Étape 2</span> Plateforme cible</p>
+            <div className="eval-type-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+              <button
+                type="button"
+                className={`eval-type-card eval-type-diagnostic ${platform === "pronote" ? "is-selected" : ""}`}
+                onClick={() => setPlatform(platform === "pronote" ? "" : "pronote")}
+                disabled={!evaluationType}
+              >
+                <Image src="/pronote-logo.png" alt="Logo Pronote" width={120} height={40} className="eval-type-logo" />
+                <span className="eval-type-name">Pronote</span>
+                <span className="eval-type-desc">Exercices QCM, saisie, texte à trous, association</span>
+              </button>
+              <button
+                type="button"
+                className={`eval-type-card eval-type-sommative ${platform === "elea" ? "is-selected" : ""}`}
+                onClick={() => setPlatform(platform === "elea" ? "" : "elea")}
+                disabled={!evaluationType}
+              >
+                <Image src="/elea-logo.png" alt="Logo Éléa" width={180} height={60} className="eval-type-logo eval-type-logo-lg" />
+                <span className="eval-type-desc">Activités pédagogiques à exporter vers Éléa/Moodle</span>
+              </button>
+            </div>
+          </div>
+
+          <div className={`eval-step2-section ${!platform ? "is-locked" : ""}`}>
+            {!platform && (
+              <div className="eval-step2-overlay">
+                <span className="eval-step2-lock-msg">👆 Choisissez d&apos;abord la plateforme ci-dessus</span>
+              </div>
+            )}
+            <p className="eval-type-label" style={{ marginBottom: "0.75rem" }}><span className="eval-step-badge">Étape 3</span> Type d&apos;exercices</p>
+
+            {platform === "pronote" && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {CONTENT_OPTIONS.filter((option) => option.value === "mcq").map((option) => {
+                  const selected = selectedPronoteModes.length > 0;
+                  return (
+                    <Tile
+                      key={option.value}
+                      title={option.title}
+                      subtitle={option.subtitle}
+                      selected={selected}
+                      variant="pronote"
+                      icon={<PronoteLogoIcon />}
+                      eyebrow="Creer facilement un QCM pour Pronote"
+                      className="qcm-pronote-hero sm:col-span-2 lg:col-span-3"
+                      extra={
+                        <div
+                          className="qcm-pronote-controls mt-1 rounded-xl border border-emerald-300 bg-white/70 p-3"
+                          onClick={(event) => event.stopPropagation()}
+                          onMouseDown={(event) => event.stopPropagation()}
+                        >
+                          <p className="mb-2 text-sm font-semibold text-emerald-900">Parcours simplifie Pronote</p>
+                          <h4 className="pronote-panel-title">Types d&apos;exercices Pronote</h4>
+                          <p className="mb-2 text-sm text-slate-700">
+                            Uniquement les formats Pronote: choix unique, choix multiple, valeur numerique, reponse a saisir,
+                            epellation et textes a trous.
+                          </p>
+
+                          <div className="pronote-family-grid">
+                            {PRONOTE_EXERCISE_FAMILIES.map((family) => (
+                              <div key={family.title} className="pronote-family-card">
+                                <p className="pronote-family-title">{family.title}</p>
+                                <p className="pronote-family-subtitle">{family.subtitle}</p>
+                                <div className="pronote-choice-grid">
+                                  {family.modes.map((mode) => {
+                                    const option = pronoteModeByValue.get(mode);
+                                    if (!option) {
+                                      return null;
+                                    }
+                                    const checked = selectedPronoteModes.includes(mode);
+                                    return (
+                                      <button
+                                        key={mode}
+                                        type="button"
+                                        className={clsx("pronote-choice-btn", checked && "is-selected")}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          if (!checked) togglePronoteMode(mode);
+                                          setCountPopup(mode);
+                                        }}
+                                      >
+                                        <span className="pronote-choice-title">
+                                          {checked ? "✓ " : ""}
+                                          {option.title}
+                                        </span>
+                                        <span className="pronote-choice-subtitle">{option.subtitle}</span>
+                                        {checked && (
+                                          <span className="pronote-choice-badge">
+                                            ×{pronoteModeCounts[mode] ?? 1}
+                                            {mode === "matching" && ` · ${matchingPairsPerQuestion}p`}
+                                          </span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
 
-                      <p className="pronote-total mt-3">
-                        Total questions Pronote&nbsp;: {pronoteRequestedCount} / 100
-                        {selectedPronoteOptions.length > 0 && (
-                          <span className="pronote-total-hint"> — cliquez sur un type pour configurer</span>
-                        )}
-                      </p>
+                          <p className="pronote-total mt-3">
+                            Total questions Pronote&nbsp;: {pronoteRequestedCount} / 100
+                            {selectedPronoteOptions.length > 0 && (
+                              <span className="pronote-total-hint"> — cliquez sur un type pour configurer</span>
+                            )}
+                          </p>
 
-                      {countPopup !== null && (() => {
-                        const popupOption = pronoteModeByValue.get(countPopup as PronoteExerciseMode);
-                        if (!popupOption) return null;
-                        const popupChecked = selectedPronoteModes.includes(countPopup as PronoteExerciseMode);
-                        const qCount = pronoteModeCounts[countPopup as PronoteExerciseMode] ?? 1;
-                        const closePopup = () => setCountPopup(null);
-                        return (
-                          <div
-                            className="pronote-popup-backdrop"
-                            onClick={(event) => { event.stopPropagation(); closePopup(); }}
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onKeyDown={(event) => { if (event.key === "Escape") closePopup(); }}
-                            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-                            tabIndex={-1}
-                          >
-                            <div
-                              className="pronote-popup"
-                              onClick={(event) => event.stopPropagation()}
-                              onMouseDown={(event) => event.stopPropagation()}
-                            >
-                              <div className="pronote-popup-header">
-                                <div>
-                                  <p className="pronote-popup-title">{popupOption.title}</p>
-                                  <p className="pronote-popup-subtitle">{popupOption.subtitle}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="pronote-popup-close"
-                                  onClick={(event) => { event.stopPropagation(); closePopup(); }}
+                          {countPopup !== null && (() => {
+                            const popupOption = pronoteModeByValue.get(countPopup as PronoteExerciseMode);
+                            if (!popupOption) return null;
+                            const popupChecked = selectedPronoteModes.includes(countPopup as PronoteExerciseMode);
+                            const qCount = pronoteModeCounts[countPopup as PronoteExerciseMode] ?? 1;
+                            const closePopup = () => setCountPopup(null);
+                            return (
+                              <div
+                                className="pronote-popup-backdrop"
+                                onClick={(event) => { event.stopPropagation(); closePopup(); }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onKeyDown={(event) => { if (event.key === "Escape") closePopup(); }}
+                                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+                                tabIndex={-1}
+                              >
+                                <div
+                                  className="pronote-popup"
+                                  onClick={(event) => event.stopPropagation()}
+                                  onMouseDown={(event) => event.stopPropagation()}
                                 >
-                                  ×
-                                </button>
-                              </div>
-
-                              <label className="pronote-popup-toggle">
-                                <input
-                                  type="checkbox"
-                                  checked={popupChecked}
-                                  onChange={() => togglePronoteMode(countPopup as PronoteExerciseMode)}
-                                />
-                                Inclure ce type dans la génération
-                              </label>
-
-                              <div className="pronote-popup-fields">
-                                <div className="pronote-popup-field">
-                                  <span>Nombre de questions</span>
-                                  <div className="pronote-stepper">
-                                    <button
-                                      type="button"
-                                      className="pronote-stepper-btn"
-                                      onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.max(1, qCount - 1)))}
-                                      disabled={qCount <= 1}
-                                    >−</button>
-                                    <span className="pronote-stepper-value">{qCount}</span>
-                                    <button
-                                      type="button"
-                                      className="pronote-stepper-btn"
-                                      onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.min(100, qCount + 1)))}
-                                      disabled={qCount >= 100}
-                                    >+</button>
-                                  </div>
-                                </div>
-                                {countPopup === "matching" && (
-                                  <div className="pronote-popup-field">
-                                    <span>Paires par question</span>
-                                    <div className="pronote-stepper">
-                                      <button
-                                        type="button"
-                                        className="pronote-stepper-btn"
-                                        onClick={() => setMatchingPairsPerQuestion((p) => Math.max(2, p - 1))}
-                                        disabled={matchingPairsPerQuestion <= 2}
-                                      >−</button>
-                                      <span className="pronote-stepper-value">{matchingPairsPerQuestion}</span>
-                                      <button
-                                        type="button"
-                                        className="pronote-stepper-btn"
-                                        onClick={() => setMatchingPairsPerQuestion((p) => Math.min(6, p + 1))}
-                                        disabled={matchingPairsPerQuestion >= 6}
-                                      >+</button>
+                                  <div className="pronote-popup-header">
+                                    <div>
+                                      <p className="pronote-popup-title">{popupOption.title}</p>
+                                      <p className="pronote-popup-subtitle">{popupOption.subtitle}</p>
                                     </div>
+                                    <button
+                                      type="button"
+                                      className="pronote-popup-close"
+                                      onClick={(event) => { event.stopPropagation(); closePopup(); }}
+                                    >
+                                      ×
+                                    </button>
                                   </div>
-                                )}
-                              </div>
 
+                                  <label className="pronote-popup-toggle">
+                                    <input
+                                      type="checkbox"
+                                      checked={popupChecked}
+                                      onChange={() => togglePronoteMode(countPopup as PronoteExerciseMode)}
+                                    />
+                                    Inclure ce type dans la génération
+                                  </label>
+
+                                  <div className="pronote-popup-fields">
+                                    <div className="pronote-popup-field">
+                                      <span>Nombre de questions</span>
+                                      <div className="pronote-stepper">
+                                        <button
+                                          type="button"
+                                          className="pronote-stepper-btn"
+                                          onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.max(1, qCount - 1)))}
+                                          disabled={qCount <= 1}
+                                        >−</button>
+                                        <span className="pronote-stepper-value">{qCount}</span>
+                                        <button
+                                          type="button"
+                                          className="pronote-stepper-btn"
+                                          onClick={() => updatePronoteModeCount(countPopup as PronoteExerciseMode, String(Math.min(100, qCount + 1)))}
+                                          disabled={qCount >= 100}
+                                        >+</button>
+                                      </div>
+                                    </div>
+                                    {countPopup === "matching" && (
+                                      <div className="pronote-popup-field">
+                                        <span>Paires par question</span>
+                                        <div className="pronote-stepper">
+                                          <button
+                                            type="button"
+                                            className="pronote-stepper-btn"
+                                            onClick={() => setMatchingPairsPerQuestion((p) => Math.max(2, p - 1))}
+                                            disabled={matchingPairsPerQuestion <= 2}
+                                          >−</button>
+                                          <span className="pronote-stepper-value">{matchingPairsPerQuestion}</span>
+                                          <button
+                                            type="button"
+                                            className="pronote-stepper-btn"
+                                            onClick={() => setMatchingPairsPerQuestion((p) => Math.min(6, p + 1))}
+                                            disabled={matchingPairsPerQuestion >= 6}
+                                          >+</button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="pronote-popup-confirm"
+                                    onClick={(event) => { event.stopPropagation(); closePopup(); }}
+                                  >
+                                    ✓ Confirmer
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
+                            <label className="text-sm font-medium text-slate-800">
+                              Niveau de difficulte
+                              <select value={difficultyTarget} onChange={(e) => setDifficultyTarget(e.target.value)}>
+                                <option value="easy">Facile</option>
+                                <option value="medium">Intermediaire</option>
+                                <option value="hard">Avance</option>
+                              </select>
+                            </label>
+                            <div className="flex justify-end">
                               <button
                                 type="button"
-                                className="pronote-popup-confirm"
-                                onClick={(event) => { event.stopPropagation(); closePopup(); }}
+                                className="primary"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={async (event) => {
+                                  event.stopPropagation();
+                                  await handleQuickPronoteGenerate();
+                                }}
+                                disabled={busy || selectedPronoteModes.length === 0 || !evaluationType}
                               >
-                                ✓ Confirmer
+                                {`Generer exercices Pronote (${pronoteRequestedCount})`}
                               </button>
                             </div>
                           </div>
-                        );
-                      })()}
-
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
-                        <label className="text-sm font-medium text-slate-800">
-                          Niveau de difficulte
-                          <select value={difficultyTarget} onChange={(e) => setDifficultyTarget(e.target.value)}>
-                            <option value="easy">Facile</option>
-                            <option value="medium">Intermediaire</option>
-                            <option value="hard">Avance</option>
-                          </select>
-                        </label>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            className="primary"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onClick={async (event) => {
-                              event.stopPropagation();
-                              await handleQuickPronoteGenerate();
-                            }}
-                            disabled={busy || selectedPronoteModes.length === 0}
-                          >
-                            {`Generer exercices Pronote (${pronoteRequestedCount})`}
-                          </button>
                         </div>
-                      </div>
-                    </div>
-                  }
-                  onClick={() => {
-                    setSelectedPronoteModes((current) => (current.length > 0 ? [] : ["single_choice"]));
-                  }}
-                />
-              );
-            })}
-          </div>
+                      }
+                      onClick={() => {
+                        setSelectedPronoteModes((current) => (current.length > 0 ? [] : ["single_choice"]));
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
 
-          <div className="elea-space mt-4">
-            <div className="elea-space-head">
-              <div className="elea-space-title-wrap">
-                <EleaLogoIcon className="elea-logo-inline" />
-                <div>
-                  <p className="elea-space-label">Espace Éléa</p>
-                  <p className="elea-space-subtitle">Activités pédagogiques à exporter vers Éléa/Moodle</p>
+            {platform === "elea" && (
+              <div className="elea-space">
+                <div className="elea-space-head">
+                  <div className="elea-space-title-wrap">
+                    <EleaLogoIcon className="elea-logo-inline" />
+                    <div>
+                      <p className="elea-space-label">Espace Éléa</p>
+                      <p className="elea-space-subtitle">Activités pédagogiques à exporter vers Éléa/Moodle</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {CONTENT_OPTIONS.filter((option) => option.value !== "mcq").map((option) => {
+                    const selected = selectedTypes.includes(option.value);
+                    return (
+                      <Tile
+                        key={option.value}
+                        title={option.title}
+                        subtitle={option.subtitle}
+                        selected={selected}
+                        dimmed={selectedTypes.length > 0 && !selected}
+                        className="elea-tile"
+                        onClick={() => {
+                          setSelectedTypes((current) =>
+                            current.includes(option.value)
+                              ? current.filter((v) => v !== option.value)
+                              : [...current, option.value]
+                          );
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="elea-brand">
+                  <EleaLogoIcon className="elea-logo-large" />
+                  <p className="elea-brand-name">Éléa</p>
                 </div>
               </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {CONTENT_OPTIONS.filter((option) => option.value !== "mcq").map((option) => {
-                const selected = selectedTypes.includes(option.value);
-                return (
-                  <Tile
-                    key={option.value}
-                    title={option.title}
-                    subtitle={option.subtitle}
-                    selected={selected}
-                    dimmed={selectedTypes.length > 0 && !selected}
-                    className="elea-tile"
-                    onClick={() => {
-                      setSelectedTypes((current) =>
-                        current.includes(option.value)
-                          ? current.filter((v) => v !== option.value)
-                          : [...current, option.value]
-                      );
-                    }}
-                  />
-                );
-              })}
-            </div>
-            <div className="elea-brand">
-              <EleaLogoIcon className="elea-logo-large" />
-              <p className="elea-brand-name">Éléa</p>
-            </div>
+            )}
           </div>
 
           <div className={clsx("mt-4 grid gap-3", selectedPronoteModes.length > 0 ? "md:grid-cols-2" : "md:grid-cols-3")}>
@@ -2098,7 +2208,7 @@ export default function HomePage() {
             <div className="space-y-2">
               <label className="text-base font-medium text-slate-800">Classe</label>
               <select value={classLevel} onChange={(e) => setClassLevel(e.target.value)}>
-                  <option value="">Sélectionner une classe</option>
+                <option value="">Sélectionner une classe</option>
                 {CLASS_LEVEL_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -2191,7 +2301,7 @@ export default function HomePage() {
             <button type="button" className="ghost" onClick={() => setStep(2)}>
               Retour
             </button>
-            <button type="button" className="primary" onClick={handleGenerate} disabled={selectedContentTypes.length === 0 || busy}>
+            <button type="button" className="primary" onClick={handleGenerate} disabled={selectedContentTypes.length === 0 || busy || !evaluationType}>
               Generer
             </button>
           </div>
@@ -2503,9 +2613,62 @@ export default function HomePage() {
               Valider les modifications
             </button>
           </div>
-          <p className="mt-3 text-xs text-amber-700 italic">
-            &#9888;&#65039; Contenu genere par IA &mdash; une relecture attentive de l&apos;enseignant est recommandee avant utilisation en classe.
-          </p>
+          <button
+            type="button"
+            className="ai-review-banner mt-3"
+            onClick={() => setShowAiReviewPopup(true)}
+          >
+            <span className="ai-review-banner-icon">&#9888;&#65039;</span>
+            <span className="ai-review-banner-text">
+              <span className="ai-review-banner-title">Relecture recommandée</span>
+              <span className="ai-review-banner-subtitle">
+                Contenu généré par IA — cliquez pour consulter la proposition et valider
+              </span>
+            </span>
+            <span className="ai-review-banner-arrow">→</span>
+          </button>
+
+          {showAiReviewPopup && (
+            <div
+              className="ai-review-popup-backdrop"
+              onClick={() => setShowAiReviewPopup(false)}
+              onKeyDown={(e) => { if (e.key === "Escape") setShowAiReviewPopup(false); }}
+              tabIndex={-1}
+            >
+              <div
+                className="ai-review-popup ai-review-popup-redesigned"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="ai-review-popup-close-btn"
+                  onClick={() => setShowAiReviewPopup(false)}
+                >
+                  ×
+                </button>
+
+                <div className="ai-review-popup-logo-wrap">
+                  <Image src="/skillbeam-logo.png" alt="SkillBeam" width={80} height={80} className="ai-review-popup-logo" />
+                </div>
+
+                <p className="ai-review-popup-title-new">Relecture recommandée</p>
+
+                <p className="ai-review-popup-subtitle">
+                  Contenu généré par <strong>IA</strong> — veuillez vérifier avant utilisation en classe.
+                </p>
+
+                <div className="ai-review-popup-actions">
+                  <button
+                    type="button"
+                    className="ai-review-popup-accept"
+                    onClick={() => setShowAiReviewPopup(false)}
+                  >
+                    ✓ J&apos;ai relu et j&apos;accepte
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -2517,15 +2680,15 @@ export default function HomePage() {
             {EXPORT_OPTIONS.map((option) => {
               const pronote = option.value === "pronote_xml";
               return (
-              <Tile
-                key={option.value}
-                title={option.title}
-                subtitle={option.subtitle}
-                selected={exportFormat === option.value}
-                onClick={() => setExportFormat(option.value)}
-                variant={pronote ? "pronote" : "default"}
-                icon={pronote ? <PronoteLogoIcon /> : undefined}
-              />
+                <Tile
+                  key={option.value}
+                  title={option.title}
+                  subtitle={option.subtitle}
+                  selected={exportFormat === option.value}
+                  onClick={() => setExportFormat(option.value)}
+                  variant={pronote ? "pronote" : "default"}
+                  icon={pronote ? <PronoteLogoIcon /> : undefined}
+                />
               );
             })}
           </div>
@@ -2542,17 +2705,62 @@ export default function HomePage() {
                   Melanger l&apos;ordre des reponses dans le XML Pronote (bonne reponse pas toujours en premier)
                 </label>
               </div>
-              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3">
-                <p className="text-sm font-semibold text-amber-900">
-                  &#9888;&#65039; Relecture recommandee
-                </p>
-                <p className="mt-1 text-sm text-amber-800">
-                  Ce fichier est genere automatiquement par intelligence artificielle.
-                  Une <strong>relecture attentive de l&apos;enseignant</strong> est vivement
-                  recommandee avant toute utilisation en classe. Verifiez la justesse
-                  factuelle des reponses et la pertinence pedagogique de chaque question.
-                </p>
-              </div>
+              <button
+                type="button"
+                className="ai-review-banner mt-3"
+                onClick={() => setShowAiReviewPopup(true)}
+              >
+                <span className="ai-review-banner-icon">&#9888;&#65039;</span>
+                <span className="ai-review-banner-text">
+                  <span className="ai-review-banner-title">Relecture recommandée</span>
+                  <span className="ai-review-banner-subtitle">
+                    Contenu généré par IA — cliquez pour consulter la proposition et valider
+                  </span>
+                </span>
+                <span className="ai-review-banner-arrow">→</span>
+              </button>
+
+              {showAiReviewPopup && (
+                <div
+                  className="ai-review-popup-backdrop"
+                  onClick={() => setShowAiReviewPopup(false)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setShowAiReviewPopup(false); }}
+                  tabIndex={-1}
+                >
+                  <div
+                    className="ai-review-popup ai-review-popup-redesigned"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="ai-review-popup-close-btn"
+                      onClick={() => setShowAiReviewPopup(false)}
+                    >
+                      ×
+                    </button>
+
+                    <div className="ai-review-popup-logo-wrap">
+                      <Image src="/skillbeam-logo.png" alt="SkillBeam" width={80} height={80} className="ai-review-popup-logo" />
+                    </div>
+
+                    <p className="ai-review-popup-title-new">Relecture recommandée</p>
+
+                    <p className="ai-review-popup-subtitle">
+                      Contenu généré par <strong>IA</strong> — veuillez vérifier avant utilisation en classe.
+                    </p>
+
+                    <div className="ai-review-popup-actions">
+                      <button
+                        type="button"
+                        className="ai-review-popup-accept"
+                        onClick={() => setShowAiReviewPopup(false)}
+                      >
+                        ✓ J&apos;ai relu et j&apos;accepte
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

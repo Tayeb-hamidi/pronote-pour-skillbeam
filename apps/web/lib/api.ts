@@ -15,7 +15,7 @@ import {
 } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 2000;
 
 async function request<T>(
   path: string,
