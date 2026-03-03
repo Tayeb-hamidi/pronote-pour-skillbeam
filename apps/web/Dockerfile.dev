@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /workspace
+
+# Install dependencies needed for node-gyp and native modules in some Next.js setups
+RUN apk add --no-cache libc6-compat python3 make g++
+
+# We only copy package.json and package-lock.json to avoid reinstalling on every code change
+COPY apps/web/package.json apps/web/package-lock.json* ./
+
+# Expose port
+EXPOSE 3000
+
+# We don't CMD npm run dev here directly. We will do it in docker-compose so it waits
+# for the volume mount to be ready.
+CMD ["sh", "-c", "npm install && npm run dev"]

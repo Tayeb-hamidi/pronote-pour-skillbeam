@@ -485,7 +485,7 @@ def build_prompt(
         - Formulation eleve: vocabulaire simple, direct, adapte a la classe cible; evite les doubles negations et les ambiguities.
         - Qualite pedagogique: distracteurs plausibles (erreurs frequentes d'eleves), jamais absurdes, jamais hors sujet.
         - Qualite pedagogique: reponse attendue concise et exploitable par un enseignant (sauf numerique/association/texte a trous).
-        - Pour les textes a trous (cloze): chaque trou doit contenir le MOT REEL qui complete la phrase, JAMAIS de placeholder (mot2, mot3, blank1, etc.). Les distracteurs de chaque trou doivent etre des mots plausibles mais incorrects dans ce contexte precis. Chaque trou = 1 seul mot ou expression courte du texte source.
+        - Pour les textes a trous (cloze): chaque trou doit contenir le MOT REEL qui complete la phrase, JAMAIS de placeholder (mot2, mot3, Thematique, blank1, etc.). Les distracteurs de chaque trou doivent etre des mots plausibles mais incorrects dans ce contexte precis. Chaque trou = 1 seul mot ou expression courte du texte source.
         - Pour les exercices d'epellation: les distracteurs doivent etre des fautes plausibles (accents manquants, lettres inversees), PAS des mots du prompt.
         {lycee_wording_rule}
         - Structure item:
@@ -615,6 +615,13 @@ def generate_items(
         source_text=effective_source,
     )
 
+    # ── Final safety pass: Drop any cloze items that remain unrepairable ──
+    validated = [
+        item
+        for item in validated
+        if not (item.item_type == ItemType.CLOZE and _cloze_item_needs_llm_repair(item))
+    ]
+
     return [_sanitize_generated_item(item) for item in validated[:max_items]]
 
 
@@ -623,7 +630,7 @@ def generate_items(
 # ────────────────────────────────────────────────
 
 _CLOZE_JUNK_CORRECT_PATTERN = re.compile(
-    r"(?:^|\b)(?:mot\d+|requis|suivant|chaque|approprié|appropriee|"
+    r"(?:^|\b)(?:mot\d+|thematique|requis|suivant|chaque|approprié|appropriee|"
     r"utilisé|utilisee|concept|définition|definition|fonction|description|"
     r"principale?|trous?)\b",
     flags=re.IGNORECASE,
@@ -704,7 +711,7 @@ def _repair_cloze_items_via_llm(
         REGLES STRICTES:
         - Chaque trou = 1 seul mot ou expression courte (2-3 mots max)
         - Les mots doivent venir du texte source et avoir un sens dans la phrase
-        - JAMAIS de placeholder (mot2, mot3, STI, requis, suivant, approprié, etc.)
+        - JAMAIS de placeholder (mot2, mot3, Thematique, STI, requis, suivant, approprié, etc.)
         - JAMAIS de mot de 3 lettres ou moins sauf acronymes connus (TCP, IP, DNS)
         - Fournis les mots dans l'ORDRE des trous (de gauche a droite)
         - Si la question indique "MOTS ATTENDUS", utilise ces mots dans le bon trou

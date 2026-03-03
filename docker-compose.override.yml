@@ -1,0 +1,17 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    volumes:
+      - ./apps/web:/workspace
+      - web_node_modules:/workspace/node_modules
+      - web_next:/workspace/.next
+    environment:
+      - NODE_ENV=development
+    # We override the command to make sure it installs deps and runs dev
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  web_node_modules:
+  web_next:

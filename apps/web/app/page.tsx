@@ -353,6 +353,7 @@ export default function HomePage() {
   const [instructions, setInstructions] = useState<string>("");
   const [contentSetId, setContentSetId] = useState<string>("");
   const [items, setItems] = useState<ContentItem[]>([]);
+  const [showQualityPanel, setShowQualityPanel] = useState<boolean>(false);
   const [qualityPreview, setQualityPreview] = useState<QualityPreview | null>(null);
   const [pronoteImportXml, setPronoteImportXml] = useState<string>("");
   const [pronoteImportFilename, setPronoteImportFilename] = useState<string>("import-pronote.xml");
@@ -1530,59 +1531,77 @@ export default function HomePage() {
           <div className="mb-4 rounded-xl border border-slate-200 bg-white/80 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-base font-semibold text-slate-900">Qualité pédagogique avant export</p>
-              <button
-                type="button"
-                className="ghost"
-                onClick={async () => {
-                  try {
-                    const { authToken, project } = await ensureAuthAndProject();
-                    await refreshQualityPreview(authToken, project);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : "Impossible de recalculer la qualité");
-                  }
-                }}
-                disabled={busy}
-              >
-                Recalculer
-              </button>
-            </div>
-            {qualityPreview ? (
-              <div className="mt-3 space-y-2">
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
-                    Score global: <strong>{qualityPreview.overall_score}/100</strong>
-                  </span>
-                  <span
-                    className={clsx(
-                      "rounded-full px-3 py-1",
-                      qualityPreview.readiness === "ready" && "bg-emerald-100 text-emerald-900",
-                      qualityPreview.readiness === "review_needed" && "bg-amber-100 text-amber-900",
-                      qualityPreview.readiness === "blocked" && "bg-rose-100 text-rose-900"
-                    )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setShowQualityPanel(!showQualityPanel)}
+                >
+                  {showQualityPanel ? "Masquer" : "Afficher"}
+                </button>
+                {showQualityPanel && (
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={async () => {
+                      try {
+                        const { authToken, project } = await ensureAuthAndProject();
+                        await refreshQualityPreview(authToken, project);
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : "Impossible de recalculer la qualité");
+                      }
+                    }}
+                    disabled={busy}
                   >
-                    Etat:{" "}
-                    {qualityPreview.readiness === "ready"
-                      ? "pret"
-                      : qualityPreview.readiness === "review_needed"
-                        ? "a revoir"
-                        : "bloque"}
-                  </span>
-                </div>
-                {qualityPreview.issues.length > 0 ? (
-                  <ul className="space-y-1 text-sm text-slate-700">
-                    {qualityPreview.issues.slice(0, 8).map((issue, idx) => (
-                      <li key={`${issue.code}-${idx}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span className="font-semibold uppercase">{issue.severity}</span>: {issue.message}
-                        {issue.item_index ? ` (item ${issue.item_index})` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-emerald-700">Aucune alerte majeure detectee.</p>
+                    Recalculer
+                  </button>
                 )}
               </div>
-            ) : (
-              <p className="mt-2 text-sm text-slate-600">Lancez un calcul de qualité pour afficher l&apos;aperçu.</p>
+            </div>
+
+            {showQualityPanel && (
+              <>
+                {qualityPreview ? (
+                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="rounded-full bg-slate-100 px-3 py-1">
+                        Score global: <strong>{qualityPreview.overall_score}/100</strong>
+                      </span>
+                      <span
+                        className={clsx(
+                          "rounded-full px-3 py-1",
+                          qualityPreview.readiness === "ready" && "bg-emerald-100 text-emerald-900",
+                          qualityPreview.readiness === "review_needed" && "bg-amber-100 text-amber-900",
+                          qualityPreview.readiness === "blocked" && "bg-rose-100 text-rose-900"
+                        )}
+                      >
+                        Etat:{" "}
+                        {qualityPreview.readiness === "ready"
+                          ? "pret"
+                          : qualityPreview.readiness === "review_needed"
+                            ? "a revoir"
+                            : "bloque"}
+                      </span>
+                    </div>
+                    {qualityPreview.issues.length > 0 ? (
+                      <ul className="space-y-1 text-sm text-slate-700">
+                        {qualityPreview.issues.slice(0, 8).map((issue, idx) => (
+                          <li key={`${issue.code}-${idx}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <span className="font-semibold uppercase">{issue.severity}</span>: {issue.message}
+                            {issue.item_index ? ` (item ${issue.item_index})` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-emerald-700">Aucune alerte majeure detectee.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600">
+                    Lancez un calcul de qualité pour afficher l&apos;aperçu.
+                  </p>
+                )}
+              </>
             )}
           </div>
 

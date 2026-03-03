@@ -1214,11 +1214,15 @@ def _build_cloze_text(prompt: str, correct_answers: list[str], distractors: list
     # directly from the LLM-generated instruction line.
     word_bank = _extract_cloze_word_bank(text)
 
-    # Merge: word bank first (most reliable), then caller's correct_answers
-    expected_answers = _dedupe_non_empty([*word_bank, *correct_answers])
+    # Use caller's correct_answers directly
+    expected_answers = _dedupe_non_empty(correct_answers)
+    
+    # Word bank words make excellent distractors
     distractor_pool = _dedupe_non_empty(
-        [value for value in distractors if not _is_junk_answer(value)]
+        [value for value in [*word_bank, *distractors] if not _is_junk_answer(value)]
     )
+
+    repaired = text
 
     if "{:MULTICHOICE:" in text:
         repaired = _repair_inline_cloze_tokens(
@@ -1226,11 +1230,7 @@ def _build_cloze_text(prompt: str, correct_answers: list[str], distractors: list
             expected_answers=expected_answers,
             distractor_pool=distractor_pool,
         )
-        # ── Final safety-net: remove any surviving junk tokens ──
-        repaired = _final_cloze_validation(repaired)
-        return repaired
-
-    if CLOZE_PLACEHOLDER_PATTERN.search(text):
+    elif CLOZE_PLACEHOLDER_PATTERN.search(text):
         fallback_answers = expected_answers or ["Reponse attendue"]
         index = 0
 
@@ -1250,19 +1250,20 @@ def _build_cloze_text(prompt: str, correct_answers: list[str], distractors: list
             )
             return _cloze_token(correct, token_distractors)
 
-        return CLOZE_PLACEHOLDER_PATTERN.sub(replace_placeholder, text)
+        repaired = CLOZE_PLACEHOLDER_PATTERN.sub(replace_placeholder, text)
+    else:
+        primary_answer = expected_answers[0] if expected_answers else "Reponse attendue"
+        token_distractors = _build_cloze_fallback_distractors(
+            correct=primary_answer,
+            seed_values=[*expected_answers, *distractor_pool],
+            prompt=text,
+            limit=3,
+        )
+        token = _cloze_token(primary_answer, token_distractors)
+        repaired = f"{text} {token}".strip() if text else token
 
-    primary_answer = expected_answers[0] if expected_answers else "Reponse attendue"
-    token_distractors = _build_cloze_fallback_distractors(
-        correct=primary_answer,
-        seed_values=[*expected_answers, *distractor_pool],
-        prompt=text,
-        limit=3,
-    )
-    token = _cloze_token(primary_answer, token_distractors)
-    if text:
-        return f"{text} {token}".strip()
-    return token
+    # ── Final safety-net: remove any surviving junk tokens ──
+    return _final_cloze_validation(repaired)
 
 
 def _extract_matching_pairs(
