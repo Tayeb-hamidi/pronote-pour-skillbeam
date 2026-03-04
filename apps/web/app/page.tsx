@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 
 import { AiReviewPopup } from "@/components/ai-review-popup";
 import { ConversionOverlay } from "@/components/conversion-overlay";
+import { EcoImpactPanel } from "@/components/eco-impact-panel";
 import { PronoteLogoIcon, EleaLogoIcon } from "@/components/pronote-icons";
 import { Stepper } from "@/components/stepper";
 import { Tile } from "@/components/tile";
@@ -78,14 +79,14 @@ const CONTENT_OPTIONS: Array<{ value: ContentType; title: string; subtitle: stri
   {
     value: "mcq",
     title: "QCM Pronote",
-    subtitle: "Bonne reponse + distracteurs"
+    subtitle: "Bonne réponse + distracteurs"
   },
-  { value: "course_structure", title: "Structure cours", subtitle: "TOC, glossaire, concepts, resumes" },
-  { value: "poll", title: "Sondage", subtitle: "Choix multiples sans bonne reponse" },
+  { value: "course_structure", title: "Structure cours", subtitle: "TOC, glossaire, concepts, résumés" },
+  { value: "poll", title: "Sondage", subtitle: "Choix multiples sans bonne réponse" },
   { value: "open_question", title: "Questions ouvertes", subtitle: "Attendus de correction" },
-  { value: "cloze", title: "Textes a trous", subtitle: "Completions ciblees" },
-  { value: "brainstorming", title: "Brainstorming", subtitle: "Categories + idees" },
-  { value: "flashcards", title: "Flashcards", subtitle: "Recto/verso revision" }
+  { value: "cloze", title: "Textes à trous", subtitle: "Completions ciblées" },
+  { value: "brainstorming", title: "Brainstorming", subtitle: "Catégories + idées" },
+  { value: "flashcards", title: "Flashcards", subtitle: "Recto/verso révision" }
 ];
 
 
@@ -99,65 +100,65 @@ const PRONOTE_EXERCISE_OPTIONS: Array<{
     {
       value: "single_choice",
       title: "Choix unique",
-      subtitle: "1 bonne reponse parmi plusieurs",
+      subtitle: "Bonne réponse + distracteurs",
       contentType: "mcq",
-      generationHint: "1 seule bonne reponse clairement identifiable."
+      generationHint: "1 seule bonne réponse clairement identifiable."
     },
     {
       value: "multiple_choice",
       title: "Choix multiple",
-      subtitle: "Plusieurs bonnes reponses",
+      subtitle: "Plusieurs bonnes réponses",
       contentType: "poll",
-      generationHint: "proposer plusieurs options pertinentes pour selection multiple."
+      generationHint: "proposer plusieurs options pertinentes pour sélection multiple."
     },
     {
       value: "numeric_value",
-      title: "Valeur numerique",
-      subtitle: "Reponse attendue en format numerique",
+      title: "Valeur numérique",
+      subtitle: "Réponse attendue en format numérique",
       contentType: "open_question",
-      generationHint: "attendre une reponse numerique et une unite si utile."
+      generationHint: "attendre une réponse numérique et une unité si utile."
     },
     {
       value: "free_response",
-      title: "Reponse a saisir",
-      subtitle: "Texte libre court",
+      title: "Réponse à saisir",
+      subtitle: "Saisie de texte libre (1-3 mots max)",
       contentType: "open_question",
-      generationHint: "reponse courte a saisir avec formulation precise."
+      generationHint: "réponse courte à saisir avec formulation précise."
     },
     {
       value: "spelling",
-      title: "Epellation",
-      subtitle: "Mot ou expression a epeler",
+      title: "Épellation",
+      subtitle: "Saisie lettre par lettre",
       contentType: "open_question",
-      generationHint: "demander explicitement une reponse epellee lettre par lettre."
+      generationHint: "demander explicitement une réponse épelée lettre par lettre."
     },
     {
       value: "cloze_free",
-      title: "Texte a trous libre",
-      subtitle: "Sans liste d'aide",
+      title: "Texte à trous",
+      subtitle: "Mots manquants à compléter",
       contentType: "cloze",
-      generationHint: "texte a trous sans proposition de reponses."
+      generationHint: "texte à trous sans proposition de réponses."
     },
     {
       value: "cloze_list_unique",
-      title: "Texte a trous liste unique",
+      title: "Texte à trous liste unique",
       subtitle: "Liste commune pour tous les trous",
       contentType: "cloze",
-      generationHint: "texte a trous avec banque commune de mots."
+      generationHint: "texte à trous avec banque commune de mots."
     },
     {
       value: "cloze_list_variable",
-      title: "Texte a trous liste variable",
+      title: "Texte à trous liste variable",
       subtitle: "Une liste par trou",
       contentType: "cloze",
-      generationHint: "texte a trous avec options specifiques a chaque trou."
+      generationHint: "texte à trous avec options spécifiques à chaque trou."
     },
     {
       value: "matching",
       title: "Association",
-      subtitle: "Relier elements gauche / droite",
+      subtitle: "Relier terme A au terme B",
       contentType: "matching",
-      generationHint: "generer des paires a associer, chaque element gauche correspond a un element droite unique."
+      generationHint: "générer des paires à associer, chaque élément gauche correspond à un élément droite unique."
     }
   ];
 
@@ -172,12 +173,12 @@ const PRONOTE_EXERCISE_FAMILIES: Array<{
       modes: ["single_choice", "multiple_choice"]
     },
     {
-      title: "Saisie de reponse",
-      subtitle: "Reponse numerique, texte libre, epellation",
+      title: "Saisie de réponse",
+      subtitle: "Réponse numérique, texte libre, épellation",
       modes: ["numeric_value", "free_response", "spelling"]
     },
     {
-      title: "Texte a trous",
+      title: "Texte à trous",
       subtitle: "Libre, liste unique, liste variable",
       modes: ["cloze_free", "cloze_list_unique", "cloze_list_variable"]
     },
@@ -1071,8 +1072,8 @@ export default function HomePage() {
 
       {step === 3 && (
         <section className="content-shell animate-fadeInUp p-6 md:p-7">
-          <h2 className="step-title mb-2 text-4xl text-slate-900">3. Choix du contenu a generer</h2>
-          <p className="mb-4 text-lg text-slate-700">Definissez le type d&apos;activites et le volume souhaite.</p>
+          <h2 className="step-title mb-2 text-4xl text-slate-900">3. Choix du contenu à générer</h2>
+          <p className="mb-4 text-lg text-slate-700">Définitissez le type d&apos;activités et le volume souhaité.</p>
 
           <div className="eval-type-section">
             <p className="eval-type-label"><span className="eval-step-badge">Étape 1</span> Type d&apos;évaluation</p>
@@ -1135,6 +1136,7 @@ export default function HomePage() {
               >
                 <Image src="/elea-logo.png" alt="Logo Éléa" width={180} height={60} className="eval-type-logo eval-type-logo-lg" />
                 <span className="eval-type-desc">Activités pédagogiques à exporter vers Éléa/Moodle</span>
+                <span className="mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 border border-amber-300">Certains formats bientôt disponibles</span>
               </button>
             </div>
           </div>
@@ -1324,13 +1326,23 @@ export default function HomePage() {
                             );
                           })()}
 
+                          <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                            <label className="text-sm font-medium text-slate-800">Instructions supplementaires (optionnel)</label>
+                            <textarea
+                              rows={3}
+                              value={instructions}
+                              onChange={(e) => setInstructions(e.target.value)}
+                              placeholder="Ex: Niveau BTS, 10 QCM, feedback court."
+                            />
+                          </div>
+
                           <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
                             <label className="text-sm font-medium text-slate-800">
-                              Niveau de difficulte
+                              Niveau de difficulté
                               <select value={difficultyTarget} onChange={(e) => setDifficultyTarget(e.target.value)}>
                                 <option value="easy">Facile</option>
-                                <option value="medium">Intermediaire</option>
-                                <option value="hard">Avance</option>
+                                <option value="medium">Intermédiaire</option>
+                                <option value="hard">Avancé</option>
                               </select>
                             </label>
                             <div className="flex justify-end">
@@ -1344,7 +1356,7 @@ export default function HomePage() {
                                 }}
                                 disabled={busy || selectedPronoteModes.length === 0 || !evaluationType}
                               >
-                                {`Generer exercices Pronote (${pronoteRequestedCount})`}
+                                {`Générer exercices Pronote (${pronoteRequestedCount})`}
                               </button>
                             </div>
                           </div>
@@ -1365,73 +1377,39 @@ export default function HomePage() {
                   <div className="elea-space-title-wrap">
                     <EleaLogoIcon className="elea-logo-inline" />
                     <div>
-                      <p className="elea-space-label">Espace Éléa</p>
                       <p className="elea-space-subtitle">Activités pédagogiques à exporter vers Éléa/Moodle</p>
                     </div>
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {CONTENT_OPTIONS.filter((option) => option.value !== "mcq").map((option) => {
-                    const selected = selectedTypes.includes(option.value);
                     return (
                       <Tile
                         key={option.value}
                         title={option.title}
                         subtitle={option.subtitle}
-                        selected={selected}
-                        dimmed={selectedTypes.length > 0 && !selected}
-                        className="elea-tile"
-                        onClick={() => {
-                          setSelectedTypes((current) =>
-                            current.includes(option.value)
-                              ? current.filter((v) => v !== option.value)
-                              : [...current, option.value]
-                          );
-                        }}
+                        selected={false}
+                        dimmed={true}
+                        className="elea-tile opacity-60 cursor-not-allowed grayscale"
+                        eyebrow="Bientôt disponible"
+                        onClick={() => {}}
                       />
                     );
                   })}
                 </div>
                 <div className="elea-brand">
                   <EleaLogoIcon className="elea-logo-large" />
-                  <p className="elea-brand-name">Éléa</p>
                 </div>
               </div>
             )}
           </div>
 
-          <div className={clsx("mt-4 grid gap-3", selectedPronoteModes.length > 0 ? "md:grid-cols-2" : "md:grid-cols-3")}>
-            <div className="space-y-2">
-              <label className="text-base font-medium text-slate-800">Matiere</label>
-              <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="ex: Anglais" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-base font-medium text-slate-800">Classe</label>
-              <select value={classLevel} onChange={(e) => setClassLevel(e.target.value)}>
-                <option value="">Sélectionner une classe</option>
-                {CLASS_LEVEL_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {selectedPronoteModes.length === 0 && (
-              <div className="space-y-2">
-                <label className="text-base font-medium text-slate-800">Difficulté cible</label>
-                <select value={difficultyTarget} onChange={(e) => setDifficultyTarget(e.target.value)}>
-                  <option value="easy">Facile</option>
-                  <option value="medium">Intermediaire</option>
-                  <option value="hard">Avance</option>
-                </select>
-              </div>
-            )}
-          </div>
+
 
           <div className="mt-4 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-base font-medium text-slate-800">
-                Texte source relu avant generation (modifiable)
+                Texte source relu avant génération (modifiable)
               </label>
               <button
                 type="button"
@@ -1453,10 +1431,10 @@ export default function HomePage() {
               rows={8}
               value={sourceReviewText}
               onChange={(e) => setSourceReviewText(e.target.value)}
-              placeholder="Le texte extrait/synthetise apparait ici pour relecture avant generation."
+              placeholder="Le texte extrait/synthétisé apparaît ici pour relecture avant génération."
             />
             <p className="text-sm text-slate-600">
-              Ce texte est celui envoye au LLM. Vous pouvez corriger, simplifier ou enrichir avant de generer.
+              Ce texte est celui envoyé au LLM. Vous pouvez le corriger, simplifier ou l&apos;enrichir avant de générer.
             </p>
           </div>
 
@@ -1483,26 +1461,18 @@ export default function HomePage() {
           )}
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-white/70 px-4 py-3 text-sm text-slate-700">
-            Total demande selon vos choix: <strong>{requestedItemsTotal}</strong> item(s)
-            {requestCountCapped && " (plafonne a 100 par generation)."}
+            Total demandé selon vos choix : <strong>{requestedItemsTotal}</strong> item(s)
+            {requestCountCapped && " (plafonné à 100 par génération)."}
           </div>
 
-          <div className="mt-4 space-y-2">
-            <label className="text-base font-medium text-slate-800">Instructions supplementaires (optionnel)</label>
-            <textarea
-              rows={4}
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Ex: Niveau BTS, 10 QCM, feedback court."
-            />
-          </div>
+
 
           <div className="mt-4 flex flex-wrap gap-3">
             <button type="button" className="ghost" onClick={() => setStep(2)}>
               Retour
             </button>
             <button type="button" className="primary" onClick={handleGenerate} disabled={selectedContentTypes.length === 0 || busy || !evaluationType}>
-              Generer
+              Générer
             </button>
           </div>
         </section>
@@ -1523,6 +1493,7 @@ export default function HomePage() {
             </div>
             <Image src="/skillbeam-logo.png" alt="Logo SkillBeam" width={190} height={62} className="skillbeam-inline-logo" />
           </div>
+          <EcoImpactPanel itemCount={items.length} />
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3">
             <span className="answer-chip answer-chip-good">Bonne reponse (vert)</span>
             <span className="answer-chip answer-chip-bad">Mauvaise reponse (rouge)</span>

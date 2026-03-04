@@ -2196,3 +2196,142 @@ input.pronote-mode-count:disabled {
   filter: grayscale(0.4);
   transition: opacity 0.3s ease;
 }
+
+/* ── Ecological Impact Panel ──────────────────────────────── */
+.eco-impact-panel {
+  margin-bottom: 1.25rem;
+  border-radius: 1.15rem;
+  padding: 1.15rem 1.25rem;
+  background: linear-gradient(135deg, #1a2332 0%, #1e3a2f 50%, #1a2f28 100%);
+  color: #e2e8f0;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.eco-impact-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.eco-impact-cloud {
+  font-size: 1.3rem;
+  line-height: 1;
+  filter: grayscale(0.3);
+}
+
+.eco-impact-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f0fdf4;
+  letter-spacing: 0.01em;
+  flex: 1;
+}
+
+.eco-impact-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.18);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #86efac;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.eco-impact-model {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.eco-impact-model strong {
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.eco-impact-value {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+  color: #cbd5e1;
+}
+
+.eco-impact-value strong {
+  color: #4ade80;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.eco-impact-info {
+  cursor: help;
+  margin-left: 0.3rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.eco-impact-equiv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.eco-impact-equiv-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+  transition: background 200ms ease;
+}
+
+.eco-impact-equiv-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.eco-impact-equiv-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.eco-impact-equiv-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #f0fdf4;
+}
+
+.eco-impact-equiv-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.eco-impact-footer {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.eco-impact-footer em {
+  font-style: normal;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+@media (max-width: 480px) {
+  .eco-impact-equiv-grid {
+    grid-template-columns: 1fr;
+  }
+}
